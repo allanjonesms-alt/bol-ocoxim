@@ -5,10 +5,11 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 export const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with force long polling to prevent connection timeouts/WebSocket blocking inside iframes
+// Initialize Firestore with force long polling to prevent connection timeouts/WebSocket blocking inside iframe container
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
 
-// Standard getAuth handles sandbox iframes and fallback persistences safely and natively
+// Standard getAuth handles sandbox iframes and fallback persistences safely
 export const auth = getAuth(app);
+

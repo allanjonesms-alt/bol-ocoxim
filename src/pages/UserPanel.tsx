@@ -7,6 +7,8 @@ import { Bet, Transaction, Match, PixPremiadoGame, MinutoCertoDraw, MinutoCertoT
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import { QrCode, Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, Trophy, X, Copy, Check, Sparkles, Award, Calendar, Trash2 } from 'lucide-react';
 import { formatMinuteValue, getMinutePeriod } from '../lib/utils';
+import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
+import { calculatePixTicketPrice } from '../utils/pixPricing';
 
 export default function UserPanel() {
   const { user, profile } = useAuth();
@@ -383,8 +385,9 @@ export default function UserPanel() {
       return;
     }
 
-    const ticketPriceVal = 1.00; // R$ 1,00 each
-    const totalCost = count * ticketPriceVal;
+    const { finalPrice, discountPercent } = calculatePixTicketPrice(count);
+    const totalCost = finalPrice;
+    const ticketPriceVal = count > 0 ? (finalPrice / count) : 1.00;
     const currentBalance = profile.balance || 0;
 
     if (currentBalance < totalCost) {
@@ -400,13 +403,8 @@ export default function UserPanel() {
     try {
       const boughtList: any[] = [];
       if (isFederal) {
-        // Generate distinctive random numbers for Loteria Federal [1, 9999]
-        const chosenNums = new Set<number>();
-        while (chosenNums.size < count) {
-          const randomNum = Math.floor(Math.random() * 9999) + 1;
-          chosenNums.add(randomNum);
-        }
-        const chosenNumsArray = Array.from(chosenNums);
+        // Generate distinctive random numbers for Loteria Federal [0001 a 9999]
+        const chosenNumsArray = await fetchAvailableFederalNumbers(db, count);
 
         await runTransaction(db, async (transaction) => {
           const userRef = doc(db, 'users', user.uid);

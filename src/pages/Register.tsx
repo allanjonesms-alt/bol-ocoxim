@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocFromCache, serverTimestamp, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { Trophy } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
@@ -93,33 +93,48 @@ export default function Register() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       
-      const userRef = doc(db, 'users', userCredential.user.uid);
-      const docSnap = await getDoc(userRef);
-      
       const userEmail = userCredential.user.email || '';
       
-      if (!docSnap.exists()) {
-        const nextId = await getNextAvailableId();
-        const displayId = nextId.toString().padStart(3, '0');
+      try {
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        let docSnap;
+        try {
+          docSnap = await getDoc(userRef);
+        } catch (fErr) {
+          try {
+            docSnap = await getDocFromCache(userRef);
+          } catch (cErr) {
+            console.warn('[Google Register] Cache getDoc failed:', cErr);
+          }
+        }
         
-        const userRole = userEmail.startsWith('allanjonesms') ? 'admin' : 'user';
-        await setDoc(userRef, {
-          name: userCredential.user.displayName || userEmail.split('@')[0],
-          email: userEmail,
-          phone: '',
-          pix_key: '',
-          balance: 0,
-          role: userRole,
-          createdAt: serverTimestamp(),
-          numericId: nextId,
-          displayId: displayId,
-        });
+        if (!docSnap || !docSnap.exists()) {
+          const nextId = await getNextAvailableId();
+          const displayId = nextId.toString().padStart(3, '0');
+          
+          const userRole = userEmail.toLowerCase().startsWith('allanjonesms') ? 'admin' : 'user';
+          await setDoc(userRef, {
+            name: userCredential.user.displayName || userEmail.split('@')[0],
+            email: userEmail,
+            phone: '',
+            pix_key: '',
+            balance: 0,
+            role: userRole,
+            createdAt: serverTimestamp(),
+            numericId: nextId,
+            displayId: displayId,
+          }).catch(sErr => console.warn('[Google Register] setDoc warning:', sErr));
+        }
+      } catch (profileErr) {
+        console.warn('[Google Register] Profile check warning:', profileErr);
       }
       
       navigate('/');
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Cadastro com Google cancelado pelo usuário.');
+      } else if (err.code === 'auth/network-request-failed' || (err.message && err.message.toLowerCase().includes('offline'))) {
+        setError('Erro de conexão com o servidor. Verifique sua conexão e tente novamente.');
       } else {
         setError(err.message || 'Erro ao cadastrar com Google.');
       }

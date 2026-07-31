@@ -2,8 +2,9 @@ import { useState, useEffect, FormEvent } from 'react';
 import { collection, onSnapshot, doc, runTransaction, serverTimestamp, getDocs, deleteDoc, writeBatch, query, where, limit, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, PixPremiadoGame, PixPremiadoDraw } from '../types';
-import { ArrowLeft, Check, X, Sparkles, RefreshCw, Trophy, Trash2, ShieldCheck, Dices, Coins, AlertCircle, CalendarDays, Plus, Edit2 } from 'lucide-react';
+import { ArrowLeft, Check, X, Sparkles, RefreshCw, Trophy, Trash2, ShieldCheck, Dices, Coins, AlertCircle, CalendarDays, Plus, Edit2, Search, Ticket, FileText, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 
 // Mathematical rules supplied by the user
 function chave(quadra: number[]) {
@@ -74,6 +75,12 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
   // Confirmation state modals
   const [showPoolConfirm, setShowPoolConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showResetFederalConfirm, setShowResetFederalConfirm] = useState(false);
+  const [showResetMegaConfirm, setShowResetMegaConfirm] = useState(false);
+
+  // Pool Type Selection & Search state
+  const [selectedPoolType, setSelectedPoolType] = useState<'megasena' | 'federal'>('megasena');
+  const [federalSearch, setFederalSearch] = useState('');
 
   // Form State for buying tickets from pool
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -321,6 +328,16 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
     setShowDrawForm(true);
   };
 
+  // Compute Mega-Sena vs Federal games
+  const megaGames = games.filter(g => Array.isArray(g.numbers) && g.numbers.length === 6);
+  const federalGames = games.filter(g => Array.isArray(g.numbers) && g.numbers.length === 1);
+
+  // Federal Search Lookup
+  const parsedFederalSearch = parseInt(federalSearch.replace(/[^0-9]/g, ''), 10);
+  const searchedFederalGame = !isNaN(parsedFederalSearch) && parsedFederalSearch >= 1 && parsedFederalSearch <= 9999
+    ? federalGames.find(g => g.numbers[0] === parsedFederalSearch)
+    : null;
+
   // Compute used quads on the fly
   const usedQuads = new Set<string>();
   games.forEach(g => {
@@ -524,13 +541,8 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
     setIsSubmitting(true);
     try {
       if (isFederal) {
-        // Generate distinctive random numbers for Loteria Federal [1, 9999]
-        const chosenNums = new Set<number>();
-        while (chosenNums.size < count) {
-          const randomNum = Math.floor(Math.random() * 9999) + 1;
-          chosenNums.add(randomNum);
-        }
-        const chosenNumsArray = Array.from(chosenNums);
+        // Generate distinctive random numbers for Loteria Federal [0001 a 9999]
+        const chosenNumsArray = await fetchAvailableFederalNumbers(db, count);
 
         const writeBatchSize = 500;
         let savedCount = 0;
@@ -674,6 +686,84 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
 
 
 
+  // Reset only Federal Tickets
+  const handleResetFederalTickets = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'pix_premiado_games'));
+      const snap = await getDocs(q);
+      const federalDocs = snap.docs.filter(d => {
+        const data = d.data();
+        return Array.isArray(data.numbers) && data.numbers.length === 1;
+      });
+
+      if (federalDocs.length > 0) {
+        const writeBatchSize = 500;
+        for (let i = 0; i < federalDocs.length; i += writeBatchSize) {
+          const batch = writeBatch(db);
+          const chunk = federalDocs.slice(i, i + writeBatchSize);
+          chunk.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+
+      showToast('Pool de bilhetes da Loteria Federal resetado com sucesso! Todos os bilhetes foram liberados.', 'success');
+    } catch (err) {
+      showToast('Erro ao resetar bilhetes da Loteria Federal.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset only Mega-Sena Tickets
+  const handleResetMegaTickets = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'pix_premiado_games'));
+      const snap = await getDocs(q);
+      const megaDocs = snap.docs.filter(d => {
+        const data = d.data();
+        return Array.isArray(data.numbers) && data.numbers.length === 6;
+      });
+
+      if (megaDocs.length > 0) {
+        const writeBatchSize = 500;
+        for (let i = 0; i < megaDocs.length; i += writeBatchSize) {
+          const batch = writeBatch(db);
+          const chunk = megaDocs.slice(i, i + writeBatchSize);
+          chunk.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+
+      // Set all assigned games in pool to false
+      const qPoolAssigned = query(collection(db, 'pix_premiado_pool'), where('assigned', '==', true));
+      const poolAssignedSnap = await getDocs(qPoolAssigned);
+      if (poolAssignedSnap.size > 0) {
+        const batchPool = writeBatch(db);
+        poolAssignedSnap.docs.forEach(d => {
+          batchPool.update(d.ref, {
+            assigned: false,
+            assignedUserId: null,
+            assignedUserName: null,
+            assignedAt: null
+          });
+        });
+        await batchPool.commit();
+      }
+
+      // Reset metadata
+      const metaRef = doc(db, 'pix_premiado_metadata', 'pool');
+      await setDoc(metaRef, { assignedGames: 0 }, { merge: true });
+
+      showToast('Todos os bilhetes da Mega-Sena foram devolvidos ao pool com sucesso!', 'success');
+    } catch (err) {
+      showToast('Erro ao resetar bilhetes da Mega-Sena.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Reset all raffle tickets (new draw) returning them to the pool
   const handleResetRaffle = async () => {
     setLoading(true);
@@ -722,6 +812,46 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
 
   // Execute a Simulation draw and find winners
   const handleCheckDraw = async () => {
+    const activeDraw = draws.find(d => d.status === 'active');
+    const isFederal = activeDraw && activeDraw.type === 'Loteria Federal';
+
+    if (isFederal) {
+      const firstNum = parseInt(drawnNumbers[0], 10);
+      if (isNaN(firstNum) || firstNum < 1 || firstNum > 9999) {
+        showToast('Por favor, informe um número válido da Loteria Federal entre 0001 e 9999.', 'error');
+        return;
+      }
+
+      const sena: PixPremiadoGame[] = [];
+      games.forEach(g => {
+        if (Array.isArray(g.numbers) && g.numbers[0] === firstNum) {
+          sena.push(g);
+        }
+      });
+
+      setDrawResults({
+        sena,
+        quina: [],
+        quadra: [],
+        terno: [],
+        hasChecked: true
+      });
+
+      if (activeDraw) {
+        try {
+          await setDoc(doc(db, 'pix_premiado_draws', activeDraw.id), {
+            drawnNumbers: [String(firstNum).padStart(4, '0')]
+          }, { merge: true });
+          showToast('Apuração da Loteria Federal concluída e resultado salvo!', 'success');
+        } catch (err) {
+          showToast('Apuração concluída, mas erro ao salvar resultado no banco.', 'warning');
+        }
+      } else {
+        showToast('Apuração concluída!', 'success');
+      }
+      return;
+    }
+
     const parsedDraw = drawnNumbers.map(n => parseInt(n, 10));
     if (parsedDraw.some(isNaN)) {
       showToast('Por favor, preencha todos os 6 números do sorteio.', 'error');
@@ -764,8 +894,6 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
       hasChecked: true
     });
     
-    // Save to active draw if any exists
-    const activeDraw = draws.find(d => d.status === 'active');
     if (activeDraw) {
       try {
         await setDoc(doc(db, 'pix_premiado_draws', activeDraw.id), {
@@ -782,9 +910,19 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
 
   // Random draw numbers
   const handleAutoDraw = () => {
-    const drawn = gerarJogo();
-    setDrawnNumbers(drawn.map(String));
-    showToast('Números sorteados aleatoriamente!', 'success');
+    const activeDraw = draws.find(d => d.status === 'active');
+    const isFederal = activeDraw && activeDraw.type === 'Loteria Federal';
+
+    if (isFederal) {
+      const randomNum = Math.floor(Math.random() * 9999) + 1;
+      const formatted = String(randomNum).padStart(4, '0');
+      setDrawnNumbers([formatted, '', '', '', '', '']);
+      showToast(`Número da Loteria Federal gerado: ${formatted}`, 'success');
+    } else {
+      const drawn = gerarJogo();
+      setDrawnNumbers(drawn.map(String));
+      showToast('Números sorteados aleatoriamente!', 'success');
+    }
   };
 
   return (
@@ -1007,43 +1145,91 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
         </div>
       </div>
 
-      {/* Main Grid: Pool Control & Check Draw */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: Pool Control (30.000 Dezenas) */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[50px] pointer-events-none"></div>
+      {/* SEÇÃO: GERENCIADOR DO POOL - ORGANIZADO EM DOIS SISTEMAS DISTINTOS */}
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-display font-bold text-slate-800 mb-2 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
-              Gerenciador do Pool (30.000 Jogos)
+            <h2 className="text-xl font-display font-bold text-slate-800 flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-indigo-600" />
+              Gerenciador dos POOLs de Sorteios
             </h2>
-            <p className="text-xs text-slate-400 font-medium mb-6 leading-relaxed">
-              Para garantir máxima lisura matemática e performance instantânea, o sistema pré-gera as 30.000 combinações exclusivas e únicas de quadras no banco de dados. Os bilhetes comprados serão sorteados aleatoriamente deste pool por apenas R$ 1,00 cada.
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Sistemas de gerenciamento de bilhetes e dezenas independentes para resultados oficiais externos.
             </p>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          {/* Sub-tabs for switching between Mega-Sena and Federal Pool Managers */}
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setSelectedPoolType('megasena')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                selectedPoolType === 'megasena'
+                  ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              Pool Mega-Sena (30k)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedPoolType('federal')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                selectedPoolType === 'federal'
+                  ? 'bg-white text-amber-700 shadow-sm border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Ticket className="w-4 h-4 text-amber-600" />
+              Pool Loteria Federal (0001-9999)
+            </button>
+          </div>
+        </div>
+
+        {/* POOL MEGA-SENA MANAGER */}
+        {selectedPoolType === 'megasena' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
+              <div>
+                <h4 className="text-sm font-bold text-indigo-950">Sistema Mega-Sena (6 Dezenas • Resultado Externo Caixa)</h4>
+                <p className="text-xs text-indigo-800/80 mt-1 leading-relaxed">
+                  O algoritmo gera um pool de 30.000 combinações exclusivas e únicas de quadras no banco de dados. Os resultados são conferidos contra os 6 números sorteados oficialmente na Mega-Sena da Caixa (Sena, Quina, Quadra e Terno).
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Status do Pool</span>
                 <div className="flex items-center gap-2">
                   <span className={`w-2.5 h-2.5 rounded-full ${poolMetadata.isInitialized ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
-                  <span className="text-sm font-bold text-slate-700">
+                  <span className="text-sm font-bold text-slate-800">
                     {poolMetadata.isInitialized ? 'Inicializado e Ativo' : 'Não Inicializado'}
                   </span>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Bilhetes Livres</span>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Bilhetes Livres no Pool</span>
                 <span className="text-lg font-bold font-mono text-indigo-600">
                   {poolMetadata.isInitialized 
-                    ? (poolMetadata.totalGames - effectiveAssignedGames).toLocaleString('pt-BR') 
+                    ? (30000 - megaGames.length).toLocaleString('pt-BR') 
                     : '0'} / 30.000
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Bilhetes Vendidos</span>
+                <span className="text-lg font-bold font-mono text-emerald-700">
+                  {megaGames.length.toLocaleString('pt-BR')} Bilhetes
                 </span>
               </div>
             </div>
 
             {isGeneratingPool && (
-              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 mb-6 animate-pulse">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 animate-pulse">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-2">
                     <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
@@ -1059,24 +1245,134 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                     style={{ width: `${poolGenProgress}%` }}
                   ></div>
                 </div>
-                <p className="text-[10px] text-indigo-700/80 font-semibold mt-2">
-                  O algoritmo gera dezenas de milhares de jogos válidos e exclusivos na memória, depois os grava no Firestore de forma otimizada para transações.
-                </p>
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => {}}
-              disabled={true}
-              className="w-full bg-slate-200 text-slate-400 font-bold rounded-xl py-3.5 transition-all cursor-not-allowed text-sm uppercase tracking-wider flex items-center justify-center gap-2"
-              title="Esta função está temporariamente desativada"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Ação Desabilitada
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPoolConfirm(true)}
+                disabled={isGeneratingPool}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-3 px-4 transition-all shadow-md shadow-indigo-600/15 text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Gerar / Regerar Pool Matemático (30.000 Jogos)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowResetMegaConfirm(true)}
+                disabled={isGeneratingPool || megaGames.length === 0}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl py-3 px-4 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Resetar Apenas Bilhetes Mega-Sena
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* POOL LOTERIA FEDERAL MANAGER */}
+        {selectedPoolType === 'federal' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="p-4 bg-amber-50/60 border border-amber-100 rounded-2xl flex items-start gap-3">
+              <Ticket className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <h4 className="text-sm font-bold text-amber-950">Sistema Loteria Federal (Bilhetes de 0001 a 9999 • Resultado Externo Caixa)</h4>
+                <p className="text-xs text-amber-800/80 mt-1 leading-relaxed">
+                  Para a Loteria Federal, o pool engloba bilhetes de 4 dígitos do número <strong>0001 ao 9999</strong> (total de 9.999 bilhetes numerados e únicos). O ganhador do prêmio principal é apurado diretamente pelo bilhete do 1º prêmio oficial.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Capacidade Total Pool</span>
+                <span className="text-lg font-bold font-mono text-slate-800">
+                  9.999 Bilhetes (0001 - 9999)
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Bilhetes Livres / Disponíveis</span>
+                <span className="text-lg font-bold font-mono text-emerald-600">
+                  {(9999 - federalGames.length).toLocaleString('pt-BR')} Livres
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Bilhetes Vendidos</span>
+                <span className="text-lg font-bold font-mono text-amber-700">
+                  {federalGames.length.toLocaleString('pt-BR')} Vendidos
+                </span>
+              </div>
+            </div>
+
+            {/* Bilhete Consultor / Search Tool */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-3">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                Consultar Status de Bilhete da Loteria Federal (0001 a 9999)
+              </label>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={federalSearch}
+                  onChange={(e) => setFederalSearch(e.target.value)}
+                  placeholder="Digite o bilhete ex: 0523..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/25"
+                />
+              </div>
+
+              {federalSearch && (
+                <div className="mt-2">
+                  {!isNaN(parsedFederalSearch) && parsedFederalSearch >= 1 && parsedFederalSearch <= 9999 ? (
+                    searchedFederalGame ? (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="px-2.5 py-1 bg-red-100 text-red-800 font-mono font-bold text-xs rounded-lg border border-red-200">
+                            Nº {String(parsedFederalSearch).padStart(4, '0')}
+                          </span>
+                          <div>
+                            <p className="text-xs font-bold text-red-900">VENDIDO / INDISPONÍVEL</p>
+                            <p className="text-[11px] text-red-700 font-medium">Apostador: <strong>{searchedFederalGame.userName}</strong></p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-red-800">R$ {searchedFederalGame.price.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
+                        <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-mono font-bold text-xs rounded-lg border border-emerald-200">
+                          Nº {String(parsedFederalSearch).padStart(4, '0')}
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-emerald-900">LIVRE / DISPONÍVEL NO POOL</p>
+                          <p className="text-[11px] text-emerald-700 font-medium">Pronto para ser sorteado ou comprado por qualquer apostador.</p>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">Por favor, informe um número válido entre 0001 e 9999.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetFederalConfirm(true)}
+                disabled={federalGames.length === 0}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl py-3 px-5 transition-all text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Resetar Apenas Bilhetes Loteria Federal
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
         {/* Right: Simulate Sorteio */}
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between">
@@ -1089,34 +1385,57 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
             <div className="space-y-6">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Inserir Números Sorteados</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' 
+                      ? 'Inserir Bilhete Contemplado (0001 a 9999)' 
+                      : 'Inserir Números Sorteados'}
+                  </label>
                   <button 
                     type="button"
                     onClick={handleAutoDraw}
                     className="text-xs font-bold text-amber-600 hover:text-amber-800 flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    <Dices className="w-3.5 h-3.5" /> Sortear Dezenas
+                    <Dices className="w-3.5 h-3.5" /> {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' ? 'Sortear Bilhete' : 'Sortear Dezenas'}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-6 gap-2">
-                  {drawnNumbers.map((num, idx) => (
+                {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' ? (
+                  <div>
                     <input 
-                      key={idx}
                       type="text"
-                      maxLength={2}
-                      value={num}
+                      maxLength={4}
+                      value={drawnNumbers[0]}
                       onChange={(e) => {
                         const cleaned = e.target.value.replace(/[^0-9]/g, '');
                         const copy = [...drawnNumbers];
-                        copy[idx] = cleaned;
+                        copy[0] = cleaned;
                         setDrawnNumbers(copy);
                       }}
-                      placeholder={`S${idx+1}`}
-                      className="w-full text-center py-3 bg-amber-50/50 border border-amber-200 rounded-xl font-mono font-bold text-lg focus:ring-2 focus:ring-amber-500/25 outline-none text-amber-800"
+                      placeholder="Ex: 0523"
+                      className="w-full text-center py-3.5 bg-amber-50/50 border border-amber-200 rounded-xl font-mono font-black text-2xl focus:ring-2 focus:ring-amber-500/25 outline-none text-amber-900 tracking-widest placeholder:text-amber-300"
                     />
-                  ))}
-                </div>
+                    <p className="text-[11px] text-slate-400 mt-1.5 text-center font-medium">Informe o bilhete vencedor de 4 dígitos entre 0001 e 9999</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-6 gap-2">
+                    {drawnNumbers.map((num, idx) => (
+                      <input 
+                        key={idx}
+                        type="text"
+                        maxLength={2}
+                        value={num}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/[^0-9]/g, '');
+                          const copy = [...drawnNumbers];
+                          copy[idx] = cleaned;
+                          setDrawnNumbers(copy);
+                        }}
+                        placeholder={`S${idx+1}`}
+                        className="w-full text-center py-3 bg-amber-50/50 border border-amber-200 rounded-xl font-mono font-bold text-lg focus:ring-2 focus:ring-amber-500/25 outline-none text-amber-800"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button 
@@ -1197,7 +1516,6 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
             </div>
           </div>
         </div>
-      </div>
 
       {/* SEÇÃO: COMPRAR / REGISTRAR BILHETES DO POOL */}
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 relative overflow-hidden">
@@ -1406,6 +1724,77 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-lg shadow-red-600/15 cursor-pointer"
               >
                 Confirmar Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResetFederalConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150 text-left">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">Resetar Bilhetes da Loteria Federal?</h3>
+              <p className="text-slate-500 text-sm mt-2 leading-relaxed">
+                <strong className="text-rose-600">ATENÇÃO:</strong> Isso excluirá todos os bilhetes registrados da Loteria Federal (0001 a 9999). 
+                Todos os números ficarão livres no pool novamente.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowResetFederalConfirm(false)}
+                className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetFederalConfirm(false);
+                  handleResetFederalTickets();
+                }}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-lg shadow-rose-600/15 cursor-pointer"
+              >
+                Confirmar Reset Federal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResetMegaConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150 text-left">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">Resetar Bilhetes da Mega-Sena?</h3>
+              <p className="text-slate-500 text-sm mt-2 leading-relaxed">
+                <strong className="text-rose-600">ATENÇÃO:</strong> Isso excluirá todos os bilhetes comprados da Mega-Sena e os devolverá ao pool de 30.000 dezenas como disponíveis.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowResetMegaConfirm(false)}
+                className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetMegaConfirm(false);
+                  handleResetMegaTickets();
+                }}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl text-sm transition-colors shadow-lg shadow-rose-600/15 cursor-pointer"
+              >
+                Confirmar Reset Mega-Sena
               </button>
             </div>
           </div>

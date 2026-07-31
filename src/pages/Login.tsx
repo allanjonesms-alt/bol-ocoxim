@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocFromCache, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { Trophy } from 'lucide-react';
 import logoImg from '../assets/images/logo.jpg';
@@ -39,26 +39,43 @@ export default function Login() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, formEmail, formPassword);
       
-      const userRef = doc(db, 'users', userCredential.user.uid);
-      const docSnap = await getDoc(userRef);
-      
-      if (!docSnap.exists()) {
-        const userRole = formEmail.startsWith('allanjonesms') ? 'admin' : 'user';
-        await setDoc(userRef, {
-          name: userCredential.user.displayName || formEmail.split('@')[0],
-          email: formEmail,
-          phone: '',
-          pix_key: '',
-          balance: 0,
-          role: userRole,
-          createdAt: serverTimestamp()
-        });
+      // Attempt profile document verification gracefully without failing auth if offline
+      try {
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        let docSnap;
+        try {
+          docSnap = await getDoc(userRef);
+        } catch (fErr) {
+          console.warn('[Login] Server getDoc failed, trying cache:', fErr);
+          try {
+            docSnap = await getDocFromCache(userRef);
+          } catch (cErr) {
+            console.warn('[Login] Cache getDoc failed:', cErr);
+          }
+        }
+        
+        if (!docSnap || !docSnap.exists()) {
+          const userRole = formEmail.toLowerCase().startsWith('allanjonesms') ? 'admin' : 'user';
+          await setDoc(userRef, {
+            name: userCredential.user.displayName || formEmail.split('@')[0],
+            email: formEmail,
+            phone: '',
+            pix_key: '',
+            balance: 0,
+            role: userRole,
+            createdAt: serverTimestamp()
+          }).catch(sErr => console.warn('[Login] setDoc profile warning:', sErr));
+        }
+      } catch (profileErr) {
+        console.warn('[Login] Non-blocking profile check error:', profileErr);
       }
       
       navigate('/');
     } catch (err: any) {
-      if (err.code === 'auth/invalid-credential') {
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
          setError('Credenciais inválidas. Se você tem certeza da senha, você pode ter criado esta conta usando Google Auth ou outro provedor. Tente a opção "Esqueci minha senha".');
+      } else if (err.code === 'auth/network-request-failed' || (err.message && err.message.toLowerCase().includes('offline'))) {
+         setError('Erro de conexão com o servidor. Verifique sua conexão e tente novamente.');
       } else {
          setError(err.message || 'E-mail ou senha incorretos.');
       }
@@ -83,28 +100,45 @@ export default function Login() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       
-      const userRef = doc(db, 'users', userCredential.user.uid);
-      const docSnap = await getDoc(userRef);
-      
       const userEmail = userCredential.user.email || '';
       
-      if (!docSnap.exists()) {
-        const userRole = userEmail.startsWith('allanjonesms') ? 'admin' : 'user';
-        await setDoc(userRef, {
-          name: userCredential.user.displayName || userEmail.split('@')[0],
-          email: userEmail,
-          phone: '',
-          pix_key: '',
-          balance: 0,
-          role: userRole,
-          createdAt: serverTimestamp()
-        });
+      // Attempt profile document verification gracefully without failing auth if offline
+      try {
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        let docSnap;
+        try {
+          docSnap = await getDoc(userRef);
+        } catch (fErr) {
+          console.warn('[Google Login] Server getDoc failed, trying cache:', fErr);
+          try {
+            docSnap = await getDocFromCache(userRef);
+          } catch (cErr) {
+            console.warn('[Google Login] Cache getDoc failed:', cErr);
+          }
+        }
+        
+        if (!docSnap || !docSnap.exists()) {
+          const userRole = userEmail.toLowerCase().startsWith('allanjonesms') ? 'admin' : 'user';
+          await setDoc(userRef, {
+            name: userCredential.user.displayName || userEmail.split('@')[0],
+            email: userEmail,
+            phone: '',
+            pix_key: '',
+            balance: 0,
+            role: userRole,
+            createdAt: serverTimestamp()
+          }).catch(sErr => console.warn('[Google Login] setDoc profile warning:', sErr));
+        }
+      } catch (profileErr) {
+        console.warn('[Google Login] Non-blocking profile check error:', profileErr);
       }
       
       navigate('/');
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Login com Google cancelado pelo usuário.');
+      } else if (err.code === 'auth/network-request-failed' || (err.message && err.message.toLowerCase().includes('offline'))) {
+        setError('Erro de conexão com o servidor. Verifique sua conexão e tente novamente.');
       } else {
         setError(err.message || 'Erro ao entrar com Google.');
       }

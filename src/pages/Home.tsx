@@ -9,6 +9,8 @@ import { formatMinuteValue } from '../lib/utils';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import MatchCountdown from '../components/MatchCountdown';
 import { generateMatchBetsPDF } from '../utils/pdfGenerator';
+import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
+import { calculatePixTicketPrice } from '../utils/pixPricing';
 import { LEADERBOARD_PRIZE_MULTIPLIER } from '../utils/constants';
 import googleScoreboardImg from '../assets/images/google_scoreboard_1783945113545.jpg';
 import minutoCertoPosterImg from '../assets/images/minuto_certo_poster_1783948747129.jpg';
@@ -34,14 +36,6 @@ export default function Home() {
     totalCost: number;
     remainingBalance: number;
     targetDrawName: string;
-  } | null>(null);
-
-  const [showPixConvertConfirm, setShowPixConvertConfirm] = useState(false);
-  const [pixConvertSummary, setPixConvertSummary] = useState<{
-    currentBalance: number;
-    ticketsQty: number;
-    totalCost: number;
-    remainingBalance: number;
   } | null>(null);
 
   useEffect(() => {
@@ -352,8 +346,9 @@ export default function Home() {
       return;
     }
 
-    const ticketPriceVal = 1.00; // R$ 1,00 each
-    const totalCost = count * ticketPriceVal;
+    const { finalPrice, discountPercent } = calculatePixTicketPrice(count);
+    const totalCost = finalPrice;
+    const ticketPriceVal = count > 0 ? (finalPrice / count) : 1.00;
     const currentBalance = profile.balance || 0;
 
     if (currentBalance < totalCost) {
@@ -368,13 +363,8 @@ export default function Home() {
     try {
       const boughtList: any[] = [];
       if (isFederal) {
-        // Generate distinctive random numbers for Loteria Federal [1, 9999]
-        const chosenNums = new Set<number>();
-        while (chosenNums.size < count) {
-          const randomNum = Math.floor(Math.random() * 9999) + 1;
-          chosenNums.add(randomNum);
-        }
-        const chosenNumsArray = Array.from(chosenNums);
+        // Generate distinctive random numbers for Loteria Federal [0001 a 9999]
+        const chosenNumsArray = await fetchAvailableFederalNumbers(db, count);
 
         await runTransaction(db, async (transaction) => {
           const userRef = doc(db, 'users', user.uid);
@@ -399,7 +389,7 @@ export default function Home() {
             amount: -totalCost,
             status: 'confirmed',
             timestamp: serverTimestamp(),
-            description: `Compra de ${count} bilhete(s) Loteria Federal (Pix Premiado)`
+            description: `Compra de ${count} bilhete(s) Loteria Federal (Pix Premiado)${discountPercent > 0 ? ` (${discountPercent}% desc.)` : ''}`
           });
 
           // Write public games
@@ -448,11 +438,11 @@ export default function Home() {
           const transRef = doc(collection(db, 'transactions'));
           transaction.set(transRef, {
             userId: user.uid,
-            type: 'bet', // Mark type as bet so it tracks properly
+            type: 'bet',
             amount: -totalCost,
             status: 'confirmed',
             timestamp: serverTimestamp(),
-            description: `Compra de ${count} bilhete(s) do Pool PIX PREMIADO`
+            description: `Compra de ${count} bilhete(s) do Pool PIX PREMIADO${discountPercent > 0 ? ` (${discountPercent}% desc.)` : ''}`
           });
 
           // Write games and assign in pool
@@ -505,195 +495,6 @@ export default function Home() {
       showToast(err.message || 'Erro ao comprar bilhetes.', 'error');
     } finally {
       setIsPurchasingPix(false);
-    }
-  };
-
-  const handleConvertPixBalanceClick = () => {
-    if (!user || !profile) {
-      showToast("Por favor, faça login para converter seu saldo em bilhetes!", "error");
-      return;
-    }
-
-    if (activePixDraws.length === 0) {
-      showToast("Nenhum sorteio de Pix Premiado ativo no momento para receber a conversão.", "warning");
-      return;
-    }
-
-    const currentBalance = profile.balance || 0;
-    const ticketPriceVal = 1.00;
-    const ticketsQty = Math.floor(currentBalance / ticketPriceVal);
-
-    if (ticketsQty <= 0) {
-      showToast("Você precisa de pelo menos R$ 1,00 de saldo para converter em bilhetes.", "error");
-      return;
-    }
-
-    const totalCost = ticketsQty * ticketPriceVal;
-    const remainingBalance = currentBalance - totalCost;
-
-    setPixConvertSummary({
-      currentBalance,
-      ticketsQty,
-      totalCost,
-      remainingBalance
-    });
-    setShowPixConvertConfirm(true);
-  };
-
-  const handleConvertPixBalanceConfirm = async () => {
-    if (!user || !profile || !pixConvertSummary) {
-      return;
-    }
-
-    const count = pixConvertSummary.ticketsQty;
-    const totalCost = pixConvertSummary.totalCost;
-    const ticketPriceVal = 1.00;
-
-    setShowPixConvertConfirm(false);
-    setIsPurchasingPix(true);
-
-    const activeDraw = activePixDraws[0];
-    const isFederal = activeDraw && activeDraw.type === 'Loteria Federal';
-
-    try {
-      const boughtList: any[] = [];
-      if (isFederal) {
-        // Generate distinctive random numbers for Loteria Federal [1, 9999]
-        const chosenNums = new Set<number>();
-        while (chosenNums.size < count) {
-          const randomNum = Math.floor(Math.random() * 9999) + 1;
-          chosenNums.add(randomNum);
-        }
-        const chosenNumsArray = Array.from(chosenNums);
-
-        await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await transaction.get(userRef);
-
-          if (!userSnap.exists()) throw new Error('Perfil de usuário não encontrado.');
-          const freshProfile = userSnap.data() as UserProfile;
-          const freshBalance = freshProfile.balance || 0;
-
-          if (freshBalance < totalCost) {
-            throw new Error('Saldo insuficiente detectado.');
-          }
-
-          // Deduct balance
-          transaction.update(userRef, { balance: freshBalance - totalCost });
-
-          // Log transaction
-          const transRef = doc(collection(db, 'transactions'));
-          transaction.set(transRef, {
-            userId: user.uid,
-            type: 'bet',
-            amount: -totalCost,
-            status: 'confirmed',
-            timestamp: serverTimestamp(),
-            description: `Conversão de Saldo em ${count} bilhete(s) Loteria Federal (Pix Premiado)`
-          });
-
-          // Write public games
-          chosenNumsArray.forEach(num => {
-            boughtList.push([num]);
-
-            const gameRef = doc(collection(db, 'pix_premiado_games'));
-            transaction.set(gameRef, {
-              userId: user.uid,
-              userName: freshProfile.name,
-              numbers: [num],
-              price: ticketPriceVal,
-              createdAt: serverTimestamp()
-            });
-          });
-        });
-
-        setRecentBoughtTickets(boughtList);
-        setShowPixBoughtModal(true);
-        showToast(`${count} bilhete(s) Loteria Federal obtidos por conversão de saldo com sucesso!`, 'success');
-      } else {
-        // MegaSena: Get random unassigned games from pool
-        const poolDocs = await fetchRandomFreeGames(count);
-        if (poolDocs.length < count) {
-          throw new Error(`Não há jogos livres suficientes no pool! Disponíveis: ${poolDocs.length}, Solicitados: ${count}.`);
-        }
-
-        // 2. Write using Firestore transaction
-        await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await transaction.get(userRef);
-
-          if (!userSnap.exists()) throw new Error('Perfil de usuário não encontrado.');
-          const freshProfile = userSnap.data() as UserProfile;
-          const freshBalance = freshProfile.balance || 0;
-
-          if (freshBalance < totalCost) {
-            throw new Error('Saldo insuficiente detectado.');
-          }
-
-          // Deduct balance
-          transaction.update(userRef, { balance: freshBalance - totalCost });
-
-          // Log transaction
-          const transRef = doc(collection(db, 'transactions'));
-          transaction.set(transRef, {
-            userId: user.uid,
-            type: 'bet', // Mark type as bet so it tracks properly
-            amount: -totalCost,
-            status: 'confirmed',
-            timestamp: serverTimestamp(),
-            description: `Conversão de Saldo em ${count} bilhete(s) do Pool PIX PREMIADO`
-          });
-
-          // Write games and assign in pool
-          poolDocs.forEach(docSnap => {
-            const gameNumbers = docSnap.data().numbers as number[];
-            boughtList.push(gameNumbers);
-            
-            // Mark assigned in pool doc
-            const poolDocRef = doc(db, 'pix_premiado_pool', docSnap.id);
-            transaction.update(poolDocRef, {
-              assigned: true,
-              assignedUserId: user.uid,
-              assignedUserName: freshProfile.name,
-              assignedAt: serverTimestamp()
-            });
-
-            // Write game
-            const gameRef = doc(collection(db, 'pix_premiado_games'));
-            transaction.set(gameRef, {
-              userId: user.uid,
-              userName: freshProfile.name,
-              numbers: gameNumbers,
-              price: ticketPriceVal,
-              createdAt: serverTimestamp()
-            });
-          });
-        });
-
-        // 3. Update metadata counts
-        try {
-          const metaRef = doc(db, 'pix_premiado_metadata', 'pool');
-          await runTransaction(db, async (transaction) => {
-            const metaSnap = await transaction.get(metaRef);
-            const currentAssigned = metaSnap.exists() ? (metaSnap.data().assignedGames || 0) : 0;
-            transaction.set(metaRef, {
-              assignedGames: currentAssigned + count
-            }, { merge: true });
-          });
-        } catch (metaErr) {
-          console.error("Error updating pool metadata count:", metaErr);
-        }
-
-        setRecentBoughtTickets(boughtList);
-        setShowPixBoughtModal(true);
-        showToast(`${count} bilhete(s) do pool obtidos por conversão de saldo com sucesso!`, 'success');
-      }
-    } catch (err: any) {
-      console.error(err);
-      showToast(err.message || 'Erro ao realizar a conversão de saldo.', 'error');
-    } finally {
-      setIsPurchasingPix(false);
-      setPixConvertSummary(null);
     }
   };
 
@@ -1109,7 +910,7 @@ export default function Home() {
                 <div key={draw.id} className="lg:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-950/60 p-6 rounded-2xl border border-indigo-500/20 shadow-inner">
                   
                   {/* Detalhes do Sorteio */}
-                  <div className="md:col-span-7 flex flex-col justify-between space-y-4">
+                  <div className="md:col-span-4 lg:col-span-4 flex flex-col justify-between space-y-4">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="bg-indigo-900/60 text-indigo-200 font-bold text-[11px] px-3 py-1 rounded-md border border-indigo-700/30 uppercase tracking-wide">
@@ -1155,28 +956,70 @@ export default function Home() {
                   </div>
 
                   {/* Interface de Compra */}
-                  <div className="md:col-span-5 bg-gradient-to-br from-indigo-950/40 to-slate-950 p-5 rounded-xl border border-indigo-500/15 flex flex-col justify-between space-y-4">
+                  <div className="md:col-span-8 lg:col-span-8 bg-gradient-to-br from-indigo-950/40 to-slate-950 p-5 rounded-xl border border-indigo-500/15 flex flex-col justify-between space-y-4">
                     <div className="space-y-3">
-                      <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                        Quantidade de Bilhetes
-                      </label>
-                      
-                      {/* Pre-sets */}
-                      <div className="grid grid-cols-5 gap-1.5 font-mono">
-                        {['1', '5', '10', '50', '100'].map(val => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setPixTicketCount(val)}
-                            className={`py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-                              pixTicketCount === val
-                                ? 'bg-yellow-400 border-yellow-400 text-slate-950 shadow-md shadow-yellow-400/20 scale-105'
-                                : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
-                            }`}
-                          >
-                            {val}
-                          </button>
-                        ))}
+                      <div className="flex justify-between items-center">
+                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                          Escolha a Quantidade de Bilhetes
+                        </label>
+                        <span className="text-[10px] text-emerald-400 font-extrabold bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                          Até 30% OFF
+                        </span>
+                      </div>
+
+                      {/* Options Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                        {[
+                          { count: 1, isPopular: false },
+                          { count: 5, isPopular: false },
+                          { count: 10, isPopular: false },
+                          { count: 50, isPopular: true },
+                          { count: 100, isPopular: false },
+                        ].map((opt) => {
+                          const pricing = calculatePixTicketPrice(opt.count);
+                          const isSelected = parseInt(pixTicketCount) === opt.count;
+
+                          return (
+                            <button
+                              key={opt.count}
+                              type="button"
+                              onClick={() => setPixTicketCount(String(opt.count))}
+                              className={`relative p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                                isSelected
+                                  ? 'bg-gradient-to-br from-yellow-400/20 via-amber-400/10 to-transparent border-yellow-400 text-white ring-2 ring-yellow-400/30 shadow-lg shadow-yellow-400/10 scale-[1.02]'
+                                  : 'bg-slate-900/90 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-850'
+                              }`}
+                            >
+                              {opt.isPopular && (
+                                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-md border border-yellow-300 whitespace-nowrap">
+                                  ⭐ MAIS ESCOLHIDO
+                                </span>
+                              )}
+                              
+                              <div className="flex justify-between items-center w-full mt-0.5">
+                                <span className="font-extrabold text-xs text-white">
+                                  {opt.count} {opt.count === 1 ? 'Bilhete' : 'Bilhetes'}
+                                </span>
+                                {pricing.discountPercent > 0 && (
+                                  <span className="bg-emerald-500/25 text-emerald-300 text-[10px] font-black px-1.5 py-0.2 rounded border border-emerald-500/40">
+                                    -{pricing.discountPercent}%
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="mt-2.5 flex items-baseline gap-1.5">
+                                <span className="font-mono font-black text-sm text-yellow-400">
+                                  R$ {pricing.finalPrice.toFixed(2)}
+                                </span>
+                                {pricing.discountPercent > 0 && (
+                                  <span className="font-mono text-[10px] text-slate-500 line-through">
+                                    R$ {pricing.originalPrice.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
 
                       {/* Custom Input */}
@@ -1187,8 +1030,8 @@ export default function Home() {
                           max="1000"
                           value={pixTicketCount}
                           onChange={(e) => setPixTicketCount(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-3 pr-10 text-sm font-semibold text-white placeholder-slate-500 font-mono"
-                          placeholder="Outra quantidade..."
+                          className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 pl-3 pr-10 text-xs font-semibold text-white placeholder-slate-500 font-mono outline-none"
+                          placeholder="Outra quantidade personalizada..."
                         />
                         <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500">
                           un
@@ -1197,45 +1040,52 @@ export default function Home() {
                     </div>
 
                     <div className="space-y-3 pt-2">
-                      <div className="flex justify-between items-center text-xs text-slate-400 font-bold uppercase">
-                        <span>Total</span>
-                        <span className="text-yellow-400 text-lg font-black font-mono">
-                          R$ {(parseInt(pixTicketCount) || 0).toFixed(2)}
-                        </span>
-                      </div>
+                      {(() => {
+                        const currentCount = parseInt(pixTicketCount) || 0;
+                        const currentPricing = calculatePixTicketPrice(currentCount);
 
-                      <button
-                        type="button"
-                        onClick={handleBuyPixTickets}
-                        disabled={isPurchasingPix || !parseInt(pixTicketCount)}
-                        className="w-full bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400 hover:from-yellow-500 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-yellow-400/10 hover:shadow-yellow-400/20 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        {isPurchasingPix ? (
+                        return (
                           <>
-                            <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
-                            <span>Processando Compra...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CircleDollarSign className="w-4 h-4 shrink-0" />
-                            <span>COMPRAR BILHETES AGORA</span>
-                          </>
-                        )}
-                      </button>
+                            <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-400 font-bold uppercase">Total</span>
+                                <span className="text-yellow-400 text-base font-black font-mono">
+                                  R$ {currentPricing.finalPrice.toFixed(2)}
+                                </span>
+                              </div>
+                              {currentPricing.discountPercent > 0 && (
+                                <div className="flex justify-between items-center text-[11px] font-bold text-emerald-400 border-t border-slate-800 pt-1">
+                                  <span>Desconto ({currentPricing.discountPercent}%):</span>
+                                  <span>- R$ {(currentPricing.originalPrice - currentPricing.finalPrice).toFixed(2)}</span>
+                                </div>
+                              )}
+                            </div>
 
-                      <button
-                        type="button"
-                        onClick={handleConvertPixBalanceClick}
-                        disabled={isPurchasingPix}
-                        className="w-full bg-indigo-650/30 hover:bg-indigo-650/50 text-indigo-200 hover:text-white font-extrabold text-xs uppercase tracking-wider py-3 px-4 rounded-xl border border-indigo-500/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Sparkles className="w-4 h-4 text-yellow-400" />
-                        <span>CONVERTER SALDO EM BILHETES</span>
-                      </button>
-                      
-                      <p className="text-[10px] text-center text-slate-500">
-                        * O valor será debitado do seu saldo.
-                      </p>
+                            <button
+                              type="button"
+                              onClick={handleBuyPixTickets}
+                              disabled={isPurchasingPix || !currentCount}
+                              className="w-full bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400 hover:from-yellow-500 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-yellow-400/10 hover:shadow-yellow-400/20 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              {isPurchasingPix ? (
+                                <>
+                                  <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                                  <span>Processando Compra...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CircleDollarSign className="w-4 h-4 shrink-0" />
+                                  <span>COMPRAR BILHETES AGORA</span>
+                                </>
+                              )}
+                            </button>
+
+                            <p className="text-[10px] text-center text-slate-500">
+                              * O valor será debitado do seu saldo.
+                            </p>
+                          </>
+                        );
+                      })()}
                     </div>
 
                   </div>
@@ -2021,86 +1871,7 @@ export default function Home() {
           </div>
         )}
 
-        {showPixConvertConfirm && pixConvertSummary && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/85 backdrop-blur-md">
-            {/* Click outside to close */}
-            <div className="absolute inset-0" onClick={() => setShowPixConvertConfirm(false)} />
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md bg-slate-950 text-slate-100 rounded-3xl overflow-hidden shadow-2xl border border-indigo-500/30 flex flex-col gap-5 p-6 z-10"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
-                  <h3 className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-200 uppercase tracking-wider">Confirmar Conversão de Saldo</h3>
-                </div>
-                <button
-                  onClick={() => setShowPixConvertConfirm(false)}
-                  className="p-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
 
-              {/* Summary Body */}
-              <div className="space-y-4">
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Você está prestes a converter seu saldo disponível em bilhetes do <strong className="text-white">PIX PREMIADO ATIVO</strong>. Cada bilhete custa <strong className="text-yellow-400">R$ 1,00</strong>.
-                </p>
-
-                <div className="bg-slate-900/60 rounded-2xl p-4 border border-indigo-500/15 space-y-3 font-medium text-xs">
-                  <div className="flex justify-between items-center text-slate-450">
-                    <span>Seu Saldo Atual:</span>
-                    <span className="font-mono font-bold text-white">R$ {pixConvertSummary.currentBalance.toFixed(2)}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center text-slate-450 border-t border-slate-800/60 pt-2.5">
-                    <span>Quantidade de Bilhetes a Adquirir:</span>
-                    <span className="font-mono font-black text-yellow-400 text-sm">+{pixConvertSummary.ticketsQty} un</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>Custo Total da Conversão:</span>
-                    <span className="font-mono font-bold text-red-400">R$ {pixConvertSummary.totalCost.toFixed(2)}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-slate-300 font-bold border-t border-slate-800 pt-2.5">
-                    <span>Saldo Restante Estimado:</span>
-                    <span className="font-mono text-emerald-400">R$ {pixConvertSummary.remainingBalance.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="bg-indigo-950/20 border border-indigo-500/10 rounded-xl p-3 flex gap-2.5 items-start">
-                  <AlertCircle className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-indigo-200/90 leading-normal">
-                    <strong>Atenção:</strong> Os bilhetes serão gerados e vinculados automaticamente do pool de bilhetes oficiais disponíveis. Esta ação é definitiva e não poderá ser cancelada.
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 justify-end mt-2">
-                <button
-                  onClick={() => setShowPixConvertConfirm(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-800 bg-transparent hover:bg-slate-900 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleConvertPixBalanceConfirm}
-                  disabled={isPurchasingPix}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-                >
-                  {isPurchasingPix ? "Convertendo..." : "Confirmar Conversão"}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
 
         {showPixBoughtModal && recentBoughtTickets.length > 0 && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md">
