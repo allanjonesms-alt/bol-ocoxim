@@ -962,7 +962,7 @@ export default function Home() {
                         <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
                           Escolha a Quantidade de Bilhetes
                         </label>
-                        <span className="text-[10px] text-emerald-400 font-extrabold bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                        <span className="text-[10px] text-red-400 font-black bg-red-950/80 border border-red-500/50 shadow-sm shadow-red-500/20 px-2.5 py-0.5 rounded-full">
                           Até 30% OFF
                         </span>
                       </div>
@@ -1001,7 +1001,7 @@ export default function Home() {
                                   {opt.count} {opt.count === 1 ? 'Bilhete' : 'Bilhetes'}
                                 </span>
                                 {pricing.discountPercent > 0 && (
-                                  <span className="bg-emerald-500/25 text-emerald-300 text-[10px] font-black px-1.5 py-0.2 rounded border border-emerald-500/40">
+                                  <span className="bg-gradient-to-r from-red-600 to-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md shadow-sm shadow-red-600/40 uppercase tracking-tight">
                                     -{pricing.discountPercent}%
                                   </span>
                                 )}
@@ -1054,7 +1054,7 @@ export default function Home() {
                                 </span>
                               </div>
                               {currentPricing.discountPercent > 0 && (
-                                <div className="flex justify-between items-center text-[11px] font-bold text-emerald-400 border-t border-slate-800 pt-1">
+                                <div className="flex justify-between items-center text-[11px] font-bold text-red-400 border-t border-slate-800 pt-1">
                                   <span>Desconto ({currentPricing.discountPercent}%):</span>
                                   <span>- R$ {(currentPricing.originalPrice - currentPricing.finalPrice).toFixed(2)}</span>
                                 </div>
