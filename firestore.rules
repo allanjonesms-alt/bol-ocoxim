@@ -190,14 +190,14 @@ service cloud.firestore {
 
     // Pix Premiado Pool
     match /pix_premiado_pool/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow update: if isSignedIn();
       allow create, delete: if isAdmin();
     }
 
     // Pix Premiado Games
     match /pix_premiado_games/{docId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow read: if true;
       allow create: if isSignedIn() && (isAdmin() || incoming().userId == request.auth.uid);
       allow update: if isAdmin();
       allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
