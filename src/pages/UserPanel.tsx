@@ -3,10 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, runTransaction, getDocs, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Bet, Transaction, Match, PixPremiadoGame, MinutoCertoDraw, MinutoCertoTicket, UserProfile, PixPremiadoDraw } from '../types';
+import { Bet, Transaction, Match, PixPremiadoGame, UserProfile, PixPremiadoDraw } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import { QrCode, Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, Trophy, X, Copy, Check, Sparkles, Award, Calendar, Trash2 } from 'lucide-react';
-import { formatMinuteValue, getMinutePeriod } from '../lib/utils';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 import { calculatePixTicketPrice } from '../utils/pixPricing';
 
@@ -16,12 +15,6 @@ export default function UserPanel() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [raffleGames, setRaffleGames] = useState<PixPremiadoGame[]>([]);
-  
-  // Minuto Certo states
-  const [minutoDraws, setMinutoDraws] = useState<MinutoCertoDraw[]>([]);
-  const [minutoTickets, setMinutoTickets] = useState<MinutoCertoTicket[]>([]);
-  const [isPurchasingMinuto, setIsPurchasingMinuto] = useState(false);
-  const [minutoToast, setMinutoToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Pix Premiado states
   const [activePixDraws, setActivePixDraws] = useState<PixPremiadoDraw[]>([]);
@@ -183,23 +176,13 @@ export default function UserPanel() {
       setRaffleGames(raffleData);
     });
 
-    const unsubMC_Draws = onSnapshot(collection(db, 'minuto_certo_draws'), (snapshot) => {
-      const mcDrawsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MinutoCertoDraw));
-      setMinutoDraws(mcDrawsData);
-    });
-
-    const unsubMC_Tickets = onSnapshot(collection(db, 'minuto_certo_tickets'), (snapshot) => {
-      const mcTicketsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MinutoCertoTicket));
-      setMinutoTickets(mcTicketsData);
-    });
-
     const qPix = query(collection(db, 'pix_premiado_draws'), where('status', '==', 'active'));
     const unsubPixDraws = onSnapshot(qPix, (snapshot) => {
       const draws = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PixPremiadoDraw));
       setActivePixDraws(draws);
     });
 
-    return () => { unsubBets(); unsubTrans(); unsubMatches(); unsubRaffle(); unsubMC_Draws(); unsubMC_Tickets(); unsubPixDraws(); };
+    return () => { unsubBets(); unsubTrans(); unsubMatches(); unsubRaffle(); unsubPixDraws(); };
   }, [user]);
 
   const handleDepositRequest = async () => {
@@ -238,109 +221,6 @@ export default function UserPanel() {
       alert('Seu depósito de R$ ' + amount.toFixed(2) + ' foi registrado como PENDENTE e aguarda validação do administrador!');
     } catch(err) {
       handleFirestoreError(err, OperationType.CREATE, 'transactions');
-    }
-  };
-
-  const handleBuyMinutoTicket = async (drawId: string) => {
-    if (!user || !profile) return;
-    const draw = minutoDraws.find(d => d.id === drawId);
-    if (!draw) return;
-
-    if (draw.status !== 'active') {
-      setMinutoToast({ message: 'Este sorteio já está encerrado!', type: 'error' });
-      setTimeout(() => setMinutoToast(null), 4000);
-      return;
-    }
-
-    const currentBalance = profile.balance || 0;
-    if (currentBalance < draw.price) {
-      setMinutoToast({ message: `Saldo insuficiente! Recarregue pelo menos R$ ${draw.price.toFixed(2)}.`, type: 'error' });
-      setTimeout(() => setMinutoToast(null), 4000);
-      return;
-    }
-
-    setIsPurchasingMinuto(true);
-
-    try {
-      // 1. Fetch all sold minutes for this draw to find available ones
-      const drawTickets = minutoTickets.filter(t => t.drawId === drawId);
-      const soldMinutes = drawTickets.map(t => t.minuteValue);
-
-      const availableMinutes: number[] = [];
-      for (let i = 1; i <= 100; i++) {
-        if (!soldMinutes.includes(i)) {
-          availableMinutes.push(i);
-        }
-      }
-
-      if (availableMinutes.length === 0) {
-        setMinutoToast({ message: 'Todos os bilhetes para este sorteio foram vendidos!', type: 'error' });
-        setTimeout(() => setMinutoToast(null), 4000);
-        setIsPurchasingMinuto(false);
-        return;
-      }
-
-      // 2. Select a random available minute
-      const randomIndex = Math.floor(Math.random() * availableMinutes.length);
-      const chosenMinute = availableMinutes[randomIndex];
-      const chosenLabel = formatMinuteValue(chosenMinute);
-
-      // 3. Run Transaction
-      await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error('Perfil de usuário não encontrado.');
-        
-        const freshProfile = userSnap.data() as UserProfile;
-        const freshBalance = freshProfile.balance || 0;
-
-        if (freshBalance < draw.price) {
-          throw new Error('Saldo insuficiente (atualizado)');
-        }
-
-        // Check if ticket document with this minute already exists
-        const ticketDocId = `${drawId}_${chosenMinute}`;
-        const ticketRef = doc(db, 'minuto_certo_tickets', ticketDocId);
-        const ticketSnap = await transaction.get(ticketRef);
-        if (ticketSnap.exists()) {
-          throw new Error('Este minuto foi adquirido por outro jogador nesse instante. Tente novamente!');
-        }
-
-        // Deduct balance
-        const newBalance = freshBalance - draw.price;
-        transaction.update(userRef, { balance: newBalance });
-
-        // Save Ticket
-        transaction.set(ticketRef, {
-          drawId,
-          userId: user.uid,
-          userName: profile.name,
-          minuteValue: chosenMinute,
-          minuteLabel: chosenLabel,
-          price: draw.price,
-          createdAt: serverTimestamp()
-        });
-
-        // Create transaction receipt
-        const transRef = doc(collection(db, 'transactions'));
-        transaction.set(transRef, {
-          userId: user.uid,
-          type: 'bet',
-          amount: -draw.price,
-          status: 'confirmed',
-          timestamp: serverTimestamp(),
-          description: `Compra Bilhete Minuto Certo - Minuto: ${chosenLabel} (Partida: ${draw.matchName})`
-        });
-      });
-
-      setMinutoToast({ message: `Sucesso! Você adquiriu o minuto ${chosenLabel}!`, type: 'success' });
-      setTimeout(() => setMinutoToast(null), 4000);
-    } catch (err: any) {
-      console.error(err);
-      setMinutoToast({ message: err.message || 'Erro ao realizar a compra.', type: 'error' });
-      setTimeout(() => setMinutoToast(null), 4000);
-    } finally {
-      setIsPurchasingMinuto(false);
     }
   };
 
@@ -971,156 +851,6 @@ export default function UserPanel() {
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-
-        {/* Seção MINUTO CERTO */}
-        <div className="bg-white rounded-3xl shadow-md border border-slate-200 p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-[50px] pointer-events-none"></div>
-          
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
-            <div>
-              <h3 className="text-xl font-display font-bold text-slate-850 flex items-center gap-2">
-                <Clock className="h-6 w-6 text-amber-600" />
-                Minuto Certo
-              </h3>
-              <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1">
-                Adquira bilhetes por R$ 2,00 e ganhe R$ 100,00 se o 1° gol da partida sair no seu minuto exclusivo!
-              </p>
-            </div>
-            <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full uppercase tracking-wider self-start sm:self-auto">
-              Prêmio: R$ 100,00
-            </span>
-          </div>
-
-          {/* Minuto Certo Toast Notification */}
-          {minutoToast && (
-            <div className={`mb-6 p-4 rounded-2xl border text-sm font-semibold flex items-center gap-2 animate-fade-in ${
-              minutoToast.type === 'success' 
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                : 'bg-rose-50 text-rose-800 border-rose-200'
-            }`}>
-              {minutoToast.type === 'success' ? <Check className="w-5 h-5 text-emerald-600" /> : <X className="w-5 h-5 text-rose-600" />}
-              <span>{minutoToast.message}</span>
-            </div>
-          )}
-
-          {minutoDraws.filter(d => d.status === 'active').length === 0 ? (
-            <div className="text-center py-10 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl">
-              <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-slate-400 font-semibold">Nenhum sorteio de Minuto Certo ativo no momento.</p>
-              <p className="text-xs text-slate-400 mt-0.5">Fique atento para as próximas partidas da Final!</p>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {minutoDraws.filter(d => d.status === 'active').map(draw => {
-                const drawTickets = minutoTickets.filter(t => t.drawId === draw.id);
-                const myTickets = drawTickets.filter(t => t.userId === user?.uid);
-                // Sort by minute value ascending
-                const sortedMyTickets = [...myTickets].sort((a, b) => a.minuteValue - b.minuteValue);
-                const isBoardOpen = true; // Let's keep the board open or add a toggle if needed
-
-                return (
-                  <div key={draw.id} className="bg-slate-50/50 border border-slate-250/60 rounded-3xl p-6 space-y-6 hover:border-amber-200 transition-colors">
-                    {/* Draw Header Info */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                      <div>
-                        <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Partida Oficial</span>
-                        <h4 className="text-base font-extrabold text-slate-800">{draw.matchName}</h4>
-                        <span className="text-xs font-semibold text-slate-400 mt-0.5 block">
-                          {draw.date.split('-').reverse().join('/')} às {draw.time}
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-col sm:items-end gap-1.5">
-                        <span className="text-xs font-bold text-slate-500">Custo: R$ {draw.price.toFixed(2)} / cada</span>
-                        <button
-                          onClick={() => handleBuyMinutoTicket(draw.id)}
-                          disabled={isPurchasingMinuto}
-                          className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-md shadow-indigo-600/10 text-xs uppercase tracking-wider whitespace-nowrap self-start sm:self-auto"
-                        >
-                          {isPurchasingMinuto ? 'Processando...' : 'Adquirir Bilhete Aleatório'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* User's purchased tickets list */}
-                    <div className="space-y-3">
-                      <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <Award className="w-4 h-4 text-amber-500" />
-                        Seus Minutos Adquiridos ({sortedMyTickets.length})
-                      </h5>
-                      {sortedMyTickets.length === 0 ? (
-                        <p className="text-xs text-slate-400 font-medium italic">Você ainda não adquiriu nenhum minuto para este sorteio.</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {sortedMyTickets.map(ticket => (
-                            <span
-                              key={ticket.id}
-                              className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-850 font-mono font-extrabold text-xs px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm"
-                            >
-                              <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                              {ticket.minuteLabel} min ({getMinutePeriod(ticket.minuteValue)})
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Visual Availability Board */}
-                    <div className="space-y-3 pt-2">
-                      <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Mapa do Sorteio (1 a 100 minutos)
-                      </h5>
-                      <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
-                        {Array.from({ length: 100 }, (_, index) => {
-                          const minVal = index + 1;
-                          const t = drawTickets.find(ticket => ticket.minuteValue === minVal);
-                          const isMine = t && t.userId === user?.uid;
-                          const isTaken = t && t.userId !== user?.uid;
-
-                          return (
-                            <div
-                              key={minVal}
-                              className={`h-9 text-[10px] font-mono font-extrabold rounded-lg flex items-center justify-center border transition-all ${
-                                isMine 
-                                  ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/15'
-                                  : isTaken
-                                  ? 'bg-slate-100 text-slate-400 border-slate-200 line-through opacity-60 cursor-not-allowed'
-                                  : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300 hover:bg-amber-50/20'
-                              }`}
-                              title={
-                                isMine 
-                                  ? `Minuto ${formatMinuteValue(minVal)}: Seu` 
-                                  : isTaken 
-                                  ? `Minuto ${formatMinuteValue(minVal)}: Vendido` 
-                                  : `Minuto ${formatMinuteValue(minVal)}: Disponível!`
-                              }
-                            >
-                              {formatMinuteValue(minVal)}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="flex gap-4 text-[10px] font-bold text-slate-400 mt-2">
-                        <div className="flex items-center gap-1">
-                          <span className="w-3.5 h-3.5 rounded-md bg-emerald-500 border border-emerald-600 inline-block"></span>
-                          <span>Adquirido por você</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="w-3.5 h-3.5 rounded-md bg-slate-100 border border-slate-200 inline-block"></span>
-                          <span>Vendido</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="w-3.5 h-3.5 rounded-md bg-white border border-slate-200 inline-block"></span>
-                          <span>Disponível</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           )}
         </div>

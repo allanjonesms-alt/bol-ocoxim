@@ -22,6 +22,7 @@ export default function AdminUsers() {
   const [editUserName, setEditUserName] = useState('');
   const [editUserPhone, setEditUserPhone] = useState('');
   const [editUserPixKey, setEditUserPixKey] = useState('');
+  const [editUserRole, setEditUserRole] = useState<'admin' | 'user'>('user');
   const [savingUserData, setSavingUserData] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -66,6 +67,7 @@ export default function AdminUsers() {
     setEditUserName(u.name || '');
     setEditUserPhone(u.phone || '');
     setEditUserPixKey(u.pix_key || '');
+    setEditUserRole(u.role || 'user');
     setLoadingBets(true);
     try {
       const betsQuery = query(collection(db, 'bets'), where('userId', '==', u.id));
@@ -146,7 +148,8 @@ export default function AdminUsers() {
       await updateDoc(doc(db, 'users', selectedUser.id), {
         name: editUserName,
         phone: editUserPhone,
-        pix_key: editUserPixKey
+        pix_key: editUserPixKey,
+        role: editUserRole,
       });
       showNotification('Dados do usuário atualizados com sucesso!');
     } catch (err) {
@@ -462,6 +465,17 @@ export default function AdminUsers() {
                           placeholder="Email, CPF, Celular ou Aleatória"
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/25 outline-none text-slate-800 font-mono text-sm font-medium" 
                         />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nível de Acesso (Função)</label>
+                        <select 
+                          value={editUserRole} 
+                          onChange={e => setEditUserRole(e.target.value as 'admin' | 'user')} 
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/25 outline-none text-slate-800 text-sm font-medium cursor-pointer"
+                        >
+                          <option value="user">Usuário Regular</option>
+                          <option value="admin">Administrador</option>
+                        </select>
                       </div>
                       <button 
                         onClick={handleSaveUserData}

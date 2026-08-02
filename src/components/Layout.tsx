@@ -6,7 +6,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/f
 import { auth, db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Transaction, UserProfile } from '../types';
-import logoImg from '../assets/images/logo.jpg';
+import logoImg from '../assets/images/pix_coxim_logo_1784559379366.jpg';
 
 interface PixRequest {
   id: string;
@@ -106,12 +106,12 @@ export default function Layout() {
       <header className="bg-emerald-900 shadow-md border-b-2 border-yellow-400 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 sm:h-20">
-            <Link to="/" className="relative w-28 sm:w-36 h-16 sm:h-20 flex items-center group z-50">
+            <Link to="/" className="flex items-center group z-50 py-1">
               <img 
                 src={logoImg} 
                 alt="PIXCOXIM Logo" 
                 referrerPolicy="no-referrer" 
-                className="h-[100px] w-[100px] sm:h-[130px] sm:w-[130px] object-contain transition-transform duration-200 group-hover:scale-105 absolute left-0 top-1/2 -translate-y-1/2" 
+                className="h-12 sm:h-16 w-auto max-w-[160px] object-contain transition-transform duration-200 group-hover:scale-105 rounded-xl shadow-sm" 
               />
             </Link>
 

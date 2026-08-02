@@ -30,3 +30,10 @@ export function getMinutePeriod(val: number): string {
   }
   return 'Desconhecido';
 }
+
+export function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase().trim();
+  return lower.startsWith('allanjonesms') || lower === 'gislenera@icloud.com';
+}
+

@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, doc, getDocs, where, runTransaction, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Match, Bet, MinutoCertoDraw, MinutoCertoTicket, UserProfile, PixPremiadoDraw, PixPremiadoGame } from '../types';
+import { Match, Bet, UserProfile, PixPremiadoDraw, PixPremiadoGame } from '../types';
 import { Trophy, CalendarClock, ChevronRight, CheckCircle2, Lock, Radio, Flame, Crown, Calendar, Lightbulb, AlertCircle, Download, FileText, Medal, CircleDollarSign, X, AlertTriangle, Clock, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { formatMinuteValue } from '../lib/utils';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import MatchCountdown from '../components/MatchCountdown';
 import { generateMatchBetsPDF } from '../utils/pdfGenerator';
@@ -13,39 +12,17 @@ import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 import { calculatePixTicketPrice } from '../utils/pixPricing';
 import { LEADERBOARD_PRIZE_MULTIPLIER } from '../utils/constants';
 import googleScoreboardImg from '../assets/images/google_scoreboard_1783945113545.jpg';
-import minutoCertoPosterImg from '../assets/images/minuto_certo_poster_1783948747129.jpg';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Teste de alteração para verificação de commit no GitHub
 
 export default function Home() {
   const { user, profile } = useAuth();
-  const [activeMinutoDraws, setActiveMinutoDraws] = useState<MinutoCertoDraw[]>([]);
   const [activePixDraws, setActivePixDraws] = useState<PixPremiadoDraw[]>([]);
   const [isPurchasingPix, setIsPurchasingPix] = useState(false);
   const [pixTicketCount, setPixTicketCount] = useState('1');
   const [recentBoughtTickets, setRecentBoughtTickets] = useState<any[]>([]);
   const [showPixBoughtModal, setShowPixBoughtModal] = useState(false);
-  const [isConverting, setIsConverting] = useState(false);
-  const [showConvertConfirm, setShowConvertConfirm] = useState(false);
-  const [convertSummary, setConvertSummary] = useState<{
-    currentBalance: number;
-    paidQty: number;
-    freeQty: number;
-    totalQty: number;
-    totalCost: number;
-    remainingBalance: number;
-    targetDrawName: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const q = query(collection(db, 'minuto_certo_draws'), where('status', '==', 'active'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const draws = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MinutoCertoDraw));
-      setActiveMinutoDraws(draws);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     const q = query(collection(db, 'pix_premiado_draws'), where('status', '==', 'active'));
@@ -95,8 +72,6 @@ export default function Home() {
   const [winnersSettings, setWinnersSettings] = useState<{ active: boolean; matchId: string } | null>(null);
   const [leaderboardSettings, setLeaderboardSettings] = useState<{ active: boolean } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
-  const [showMinutoPromo, setShowMinutoPromo] = useState(false);
-
   const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -114,197 +89,6 @@ export default function Home() {
     const a = m.team2?.toLowerCase() || '';
     return (h.includes('frança') || h.includes('franca') || h.includes('france')) && (a.includes('espanha') || a.includes('spain')) ||
            (h.includes('espanha') || h.includes('spain')) && (a.includes('frança') || a.includes('franca') || a.includes('france'));
-  };
-
-  const isBefore16hAppTime = () => {
-    const now = new Date();
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const appTime = new Date(utcTime - (4 * 3600000));
-    return appTime.getHours() < 16;
-  };
-
-  const handleConvertClick = () => {
-    if (!user || !profile) {
-      showToast("Por favor, faça login para converter seu saldo em minutos!", "error");
-      return;
-    }
-
-    if (!isBefore16hAppTime()) {
-      showToast("As conversões de saldo se encerraram às 16h (horário do app, -4:00 UTC).", "error");
-      return;
-    }
-
-    if (activeMinutoDraws.length === 0) {
-      showToast("Nenhum sorteio de Minuto Certo ativo no momento para receber a conversão.", "warning");
-      return;
-    }
-
-    const currentBalance = profile.balance || 0;
-    if (currentBalance < 2.00) {
-      showToast("Você precisa de pelo menos R$ 2,00 de saldo para converter em minutos. Sem o saldo mínimo, não é possível conceder os 2 bilhetes gratuitos.", "error");
-      return;
-    }
-
-    const paidQty = Math.floor(currentBalance / 2);
-    const freeQty = 2;
-    const totalQty = paidQty + freeQty;
-
-    const totalCost = paidQty * 2;
-    const remainingBalance = currentBalance - totalCost;
-    const targetDraw = activeMinutoDraws[0];
-
-    setConvertSummary({
-      currentBalance,
-      paidQty,
-      freeQty,
-      totalQty,
-      totalCost,
-      remainingBalance,
-      targetDrawName: targetDraw.matchName
-    });
-    setShowConvertConfirm(true);
-  };
-
-  const handleConvertBalanceToMinutes = async () => {
-    if (!user || !profile || !convertSummary) {
-      return;
-    }
-
-    if (!isBefore16hAppTime()) {
-      showToast("As conversões de saldo se encerraram às 16h (horário do app, -4:00 UTC).", "error");
-      setShowConvertConfirm(false);
-      return;
-    }
-
-    const currentBalance = profile.balance || 0;
-    if (currentBalance < 2.00) {
-      showToast("Você precisa de pelo menos R$ 2,00 de saldo para realizar a conversão.", "error");
-      setShowConvertConfirm(false);
-      return;
-    }
-
-    setShowConvertConfirm(false);
-    setIsConverting(true);
-
-    const targetDraw = activeMinutoDraws[0];
-
-    try {
-      // 1. Fetch sold tickets for this draw
-      const ticketsSnap = await getDocs(
-        query(collection(db, 'minuto_certo_tickets'), where('drawId', '==', targetDraw.id))
-      );
-      const soldMinutes = ticketsSnap.docs.map(doc => (doc.data() as MinutoCertoTicket).minuteValue);
-
-      // 2. Find available minutes of the second half (46 to 95)
-      const availableMinutes: number[] = [];
-      for (let i = 46; i <= 95; i++) {
-        if (!soldMinutes.includes(i)) {
-          availableMinutes.push(i);
-        }
-      }
-
-      if (availableMinutes.length === 0) {
-        showToast("Todos os minutos do segundo tempo (46 a 95) para este sorteio já foram adquiridos!", "error");
-        setIsConverting(false);
-        return;
-      }
-
-      const totalRequestedQty = convertSummary.totalQty;
-      const actualQty = Math.min(totalRequestedQty, availableMinutes.length);
-      const actualPaidQty = Math.max(0, actualQty - convertSummary.freeQty);
-      const totalCost = actualPaidQty * 2;
-
-      if (currentBalance < totalCost) {
-        showToast(`Saldo insuficiente para converter. Você precisa de pelo menos R$ ${totalCost.toFixed(2)}.`, "error");
-        setIsConverting(false);
-        return;
-      }
-
-      // 3. Select distinct random minutes from available ones
-      const selectedMinutes: number[] = [];
-      const tempAvailable = [...availableMinutes];
-      for (let i = 0; i < actualQty; i++) {
-        const randomIndex = Math.floor(Math.random() * tempAvailable.length);
-        selectedMinutes.push(tempAvailable[randomIndex]);
-        tempAvailable.splice(randomIndex, 1);
-      }
-
-      // 4. Run Transaction
-      await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error('Perfil de usuário não encontrado.');
-
-        const freshProfile = userSnap.data() as UserProfile;
-        const freshBalance = freshProfile.balance || 0;
-
-        if (freshBalance < 2.00) {
-          throw new Error('Você precisa de no mínimo R$ 2,00 de saldo para poder converter.');
-        }
-
-        if (freshBalance < totalCost) {
-          throw new Error('Saldo insuficiente para a conversão.');
-        }
-
-        const ticketCheckResults = [];
-        for (const m of selectedMinutes) {
-          const tDocId = `${targetDraw.id}_${m}`;
-          const tRef = doc(db, 'minuto_certo_tickets', tDocId);
-          const tSnap = await transaction.get(tRef);
-          if (tSnap.exists()) {
-            throw new Error(`O minuto ${formatMinuteValue(m)} foi adquirido por outro jogador. Tente novamente!`);
-          }
-          ticketCheckResults.push({ ref: tRef, minute: m, label: formatMinuteValue(m) });
-        }
-
-        // Deduct balance
-        const newBalance = freshBalance - totalCost;
-        transaction.update(userRef, { balance: newBalance });
-
-        // Save tickets
-        for (const item of ticketCheckResults) {
-          transaction.set(item.ref, {
-            drawId: targetDraw.id,
-            userId: user.uid,
-            userName: freshProfile.name,
-            minuteValue: item.minute,
-            minuteLabel: item.label,
-            price: targetDraw.price,
-            createdAt: serverTimestamp()
-          });
-        }
-
-        // Create transaction receipt
-        const transRef = doc(collection(db, 'transactions'));
-        const labelsList = [...selectedMinutes].sort((a, b) => a - b).map(m => formatMinuteValue(m)).join(', ');
-        transaction.set(transRef, {
-          userId: user.uid,
-          type: 'bet',
-          amount: -totalCost,
-          status: 'confirmed',
-          timestamp: serverTimestamp(),
-          description: `Conversão de Saldo em Minuto Certo (${actualQty}x, sendo 2 gratuitos) - Minutos: ${labelsList} (Partida: ${targetDraw.matchName})`
-        });
-      });
-
-      const formattedMinutes = [...selectedMinutes].sort((a, b) => a - b).map(m => formatMinuteValue(m)).join(', ');
-      showToast(`Sucesso! Seu saldo de R$ ${currentBalance.toFixed(2)} foi convertido em ${actualQty} minutos (+2 gratuitos): ${formattedMinutes}!`, 'success');
-    } catch (err: any) {
-      console.error(err);
-      showToast(err.message || 'Erro ao realizar a conversão de saldo.', 'error');
-    } finally {
-      setIsConverting(false);
-      setConvertSummary(null);
-    }
-  };
-
-  useEffect(() => {
-    // Hidden as per user request to hide the pop-up do minuto certo
-    setShowMinutoPromo(false);
-  }, []);
-
-  const closePromo = () => {
-    setShowMinutoPromo(false);
   };
 
   // Helper to fetch random free pool games
@@ -910,7 +694,7 @@ export default function Home() {
                 <div key={draw.id} className="lg:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-950/60 p-6 rounded-2xl border border-indigo-500/20 shadow-inner">
                   
                   {/* Detalhes do Sorteio */}
-                  <div className="md:col-span-4 lg:col-span-4 flex flex-col justify-between space-y-4">
+                  <div className="md:col-span-3 lg:col-span-3 flex flex-col justify-between space-y-4">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="bg-indigo-900/60 text-indigo-200 font-bold text-[11px] px-3 py-1 rounded-md border border-indigo-700/30 uppercase tracking-wide">
@@ -956,23 +740,24 @@ export default function Home() {
                   </div>
 
                   {/* Interface de Compra */}
-                  <div className="md:col-span-8 lg:col-span-8 bg-gradient-to-br from-indigo-950/40 to-slate-950 p-5 rounded-xl border border-indigo-500/15 flex flex-col justify-between space-y-4">
+                  <div className="md:col-span-9 lg:col-span-9 bg-gradient-to-br from-indigo-950/40 to-slate-950 p-5 rounded-xl border border-indigo-500/15 flex flex-col justify-between space-y-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
                           Escolha a Quantidade de Bilhetes
                         </label>
-                        <span className="text-[10px] text-red-400 font-black bg-red-950/80 border border-red-500/50 shadow-sm shadow-red-500/20 px-2.5 py-0.5 rounded-full">
+                        <span className="text-[11px] text-white font-black bg-red-600 border border-red-500 shadow-md shadow-red-600/40 px-3 py-1 rounded-full uppercase tracking-wider animate-pulse">
                           Até 30% OFF
                         </span>
                       </div>
 
                       {/* Options Grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
                         {[
                           { count: 1, isPopular: false },
                           { count: 5, isPopular: false },
                           { count: 10, isPopular: false },
+                          { count: 20, isPopular: false },
                           { count: 50, isPopular: true },
                           { count: 100, isPopular: false },
                         ].map((opt) => {
@@ -1001,7 +786,7 @@ export default function Home() {
                                   {opt.count} {opt.count === 1 ? 'Bilhete' : 'Bilhetes'}
                                 </span>
                                 {pricing.discountPercent > 0 && (
-                                  <span className="bg-gradient-to-r from-red-600 to-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md shadow-sm shadow-red-600/40 uppercase tracking-tight">
+                                  <span className="bg-red-600 text-white font-black text-[10px] px-2 py-0.5 rounded-md shadow-md shadow-red-600/50 uppercase tracking-wider border border-red-400">
                                     -{pricing.discountPercent}%
                                   </span>
                                 )}
@@ -1243,8 +1028,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* Sessão de Jogos Promocionais em Destaque (Urgentes - < 3h de expiração) */}
-          {urgentPromotionalMatches.length > 0 && (
+          {/* Sessão de Jogos Promocionais e Oficiais (Próximos Jogos) - OCULTADA da tela inicial por solicitação do usuário */}
+          {false && urgentPromotionalMatches.length > 0 && (
             <div className="bg-indigo-50/40 border border-indigo-200 rounded-3xl p-6 sm:p-8 space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
@@ -1333,127 +1118,12 @@ export default function Home() {
             </div>
           )}
 
-          {/* Seção Destaque MINUTO CERTO - OCULTADA */}
-          {false && (
-            <div className="bg-gradient-to-br from-amber-500/10 via-amber-50/20 to-white border border-amber-300/80 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden text-left">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/15 rounded-full blur-[50px] pointer-events-none animate-pulse"></div>
-              
-              <div className="flex flex-col xl:flex-row items-stretch justify-between gap-8 relative z-10">
-                <div className="space-y-4 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
-                      <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      Novidade Imperdível
-                    </span>
-                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow-xs font-mono">
-                      Bilhete: R$ 2,00
-                    </span>
-                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow-xs">
-                      Prêmio: R$ 100,00 Fixo
-                    </span>
-                  </div>
-                  
-                  <h3 className="text-2xl sm:text-3xl font-display font-black text-amber-850 tracking-tight">
-                    MINUTO CERTO ⚽⏱️
-                  </h3>
-
-                  <div className="text-slate-605 text-sm leading-relaxed space-y-4">
-                    <p className="text-slate-800 text-base sm:text-lg font-bold leading-snug">
-                      Participe do <span className="text-amber-700 font-black">Minuto Certo</span> por apenas <span className="text-amber-700 font-black">R$ 2,00</span> por bilhete! Se o <span className="text-amber-700 font-black">1º GOL</span> do jogo sair no seu minuto, você leva o prêmio de <span className="text-emerald-700 font-black">R$ 100,00 sozinho</span>!
-                    </p>
-                    
-                    <p className="text-slate-600 text-sm">
-                      Nessa modalidade especial, o prêmio terá um <strong className="text-slate-800">vencedor único</strong> e <strong className="text-slate-800">não será dividido</strong> de forma alguma. <strong>Aposta válida para o 1º gol oficial da partida</strong> (caso o minuto do 1º gol esteja vazio, passa para os gols seguintes). Adquira seus bilhetes aleatórios para aumentar suas chances!
-                    </p>
-
-                    <p className="text-xs text-slate-500 flex items-center gap-2 pt-2 border-t border-slate-100">
-                      <AlertCircle className="w-4 h-4 text-indigo-500 shrink-0" />
-                      <span>
-                        Usamos a <strong>transmissão oficial e o painel de busca do Google</strong> como referência de minutagem oficial do gol.
-                      </span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Lado Direito: Exemplo de Imagem e Botão */}
-                <div className="flex flex-col justify-between items-center xl:w-[320px] shrink-0 bg-white/65 border border-slate-200/60 p-4 rounded-2xl gap-4">
-                  <div className="w-full text-center space-y-2">
-                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block">Exemplo de Apuração (Google)</span>
-                    <div className="bg-slate-50 border border-slate-200/60 p-2 rounded-lg flex justify-center">
-                      <img 
-                        src={googleScoreboardImg} 
-                        alt="Painel Google Scoreboard Exemplo" 
-                        className="max-w-full h-auto max-h-[85px] object-contain rounded"
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
-                      />
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-bold block leading-tight">
-                      Schjelderup 36&apos; (Minuto 36) <br /> Bellingham 45+2&apos; (Minuto 45+2)
-                    </span>
-                  </div>
-
-                  <div className="w-full space-y-2">
-                    <button
-                      onClick={handleConvertClick}
-                      disabled={isConverting}
-                      className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider py-3.5 px-3 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 flex flex-col items-center justify-center gap-1 border border-emerald-400/30 cursor-pointer w-full text-center group"
-                    >
-                      <span className="flex items-center gap-1.5 justify-center">
-                        <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse shrink-0 group-hover:rotate-12 transition-transform" />
-                        <span>{isConverting ? "Convertendo..." : "CONVERTA SEU SALDO em MINUTOS"}</span>
-                      </span>
-                      <span className="text-[10px] text-emerald-100 font-extrabold normal-case tracking-normal">
-                        Promoção: Ganhe +2 Bilhetes Gratuitos! 🎁
-                      </span>
-                    </button>
-
-                    <Link
-                      to="/minuto-certo"
-                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider py-3 rounded-xl transition-all shadow-md shadow-amber-500/10 hover:shadow-lg active:scale-95 flex items-center gap-1.5 border border-amber-400 justify-center text-center w-full"
-                    >
-                      <span>Adquirir Meu Minuto</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
-
-                    <Link
-                      to="/regulamento"
-                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 justify-center w-full"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Ver regulamento completo</span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-
-
-          {officialMatches.length > 0 && (
+          {false && officialMatches.length > 0 && (
             <div>
               <h2 className="text-xl font-display font-bold text-slate-800 mb-6 flex items-center justify-between border-b border-slate-200 pb-3">
                 <span>Jogos Oficiais</span>
                 <Link to="/matches" className="text-sm font-sans font-bold text-emerald-600 hover:text-emerald-700 transition">Ver todos</Link>
               </h2>
-
-              {/* Informação Importante sobre Encerramento e PDF - OCULTADO
-              <div className="bg-gradient-to-r from-emerald-500/10 via-emerald-600/5 to-white border border-emerald-500/30 rounded-3xl p-5 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                <div className="bg-emerald-100 border border-emerald-300 p-3 rounded-2xl shrink-0 flex items-center justify-center">
-                  <AlertCircle className="h-6 w-6 text-emerald-700 animate-pulse" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-emerald-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    📢 INFORMAÇÃO IMPORTANTE & TRANSPARÊNCIA
-                  </h4>
-                  <p className="text-slate-650 text-xs sm:text-sm leading-relaxed font-medium">
-                    As apostas se encerram pontualmente às <strong className="text-emerald-800 font-extrabold">17h30</strong>. Logo após o encerramento, estará disponível para download o <strong className="text-slate-800 font-bold">arquivo PDF com todas as apostas registradas</strong>, garantindo total lisura, transparência e segurança de todos os participantes do nosso Bolão!
-                  </p>
-                </div>
-              </div>
-              */}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {officialMatches.map(match => {
@@ -1467,7 +1137,6 @@ export default function Home() {
                       to={`/match/${match.id}`}
                       className="group bg-white rounded-3xl border border-slate-200 overflow-hidden hover:border-emerald-600 transition-all flex flex-col relative shadow-sm hover:shadow-md transform hover:-translate-y-1"
                     >
-                      {/* Glow effect on hover */}
                       <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/0 via-emerald-500/0 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       
                       <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex justify-between items-center text-sm relative z-10">
@@ -1583,7 +1252,7 @@ export default function Home() {
             </div>
           )}
 
-          {normalPromotionalMatches.length > 0 && (
+          {false && normalPromotionalMatches.length > 0 && (
             <div>
               <h2 className="text-xl font-display font-bold text-indigo-800 mb-2 flex items-center gap-2">
                 🌟 Jogos Promocionais
@@ -1717,163 +1386,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* Modal Promocional Minuto Certo */}
-      <AnimatePresence>
-        {showMinutoPromo && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
-            {/* Click outside to close */}
-            <div className="absolute inset-0" onClick={closePromo} />
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 15 }}
-              transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
-              className="relative w-full max-w-sm bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800/80 flex flex-col gap-4 p-5 z-10"
-            >
-              {/* Header / Close */}
-              <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-                  <h3 className="text-xs font-black text-amber-400 uppercase tracking-widest">Aviso Especial!</h3>
-                </div>
-                <button
-                  onClick={closePromo}
-                  className="p-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer border border-slate-800/50 flex items-center justify-center"
-                  aria-label="Fechar"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Poster / Image Link */}
-              <Link 
-                to="/minuto-certo" 
-                onClick={closePromo}
-                className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden border border-slate-800 shadow-lg group hover:border-amber-500/50 transition-all duration-300 block"
-              >
-                <img 
-                  src={minutoCertoPosterImg} 
-                  alt="Minuto Certo PIXCOXIM" 
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-45 group-hover:opacity-20 transition-opacity" />
-                
-                {/* Badge Overlay */}
-                <div className="absolute bottom-3 left-3 bg-amber-500 text-slate-950 font-black px-3 py-1.5 rounded-xl text-[9px] uppercase tracking-wider shadow-md">
-                  Clique para comprar
-                </div>
-              </Link>
-
-              {/* CTA Button */}
-              <Link
-                to="/minuto-certo"
-                onClick={closePromo}
-                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-95 text-slate-950 font-black py-3 px-6 rounded-2xl text-center uppercase tracking-wider text-xs transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer border border-amber-400/20"
-              >
-                <Trophy className="h-3.5 w-3.5" />
-                <span>Adquirir Bilhetes</span>
-              </Link>
-            </motion.div>
-          </div>
-        )}
-
-        {showConvertConfirm && convertSummary && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
-            {/* Click outside to close */}
-            <div className="absolute inset-0" onClick={() => setShowConvertConfirm(false)} />
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md bg-slate-900 text-slate-100 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col gap-5 p-6 z-10"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
-                  <h3 className="text-sm font-black text-emerald-400 uppercase tracking-wider">Confirmar Conversão de Saldo</h3>
-                </div>
-                <button
-                  onClick={() => setShowConvertConfirm(false)}
-                  className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Summary Body */}
-              <div className="space-y-4">
-                <p className="text-xs text-slate-350 leading-relaxed">
-                  Você está prestes a converter seu saldo disponível em bilhetes do sorteio <strong className="text-slate-100">{convertSummary.targetDrawName}</strong> e receber os bilhetes gratuitos promocionais.
-                </p>
-
-                <div className="bg-slate-950/65 rounded-2xl p-4 border border-slate-800/80 space-y-3 font-medium text-xs">
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>Seu Saldo Atual:</span>
-                    <span className="font-mono font-bold text-slate-100">R$ {convertSummary.currentBalance.toFixed(2)}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center text-slate-400 border-t border-slate-800/55 pt-2.5">
-                    <span>Bilhetes Convertidos (R$ 2,00 cada):</span>
-                    <span className="font-mono font-bold text-slate-100">+{convertSummary.paidQty} un</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-emerald-400 bg-emerald-950/20 px-2 py-1.5 rounded-lg border border-emerald-900/30">
-                    <span className="font-bold flex items-center gap-1">🎁 Promoção Bilhetes Grátis:</span>
-                    <span className="font-mono font-black">+{convertSummary.freeQty} un</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-slate-300 font-bold border-t border-slate-800/55 pt-2.5">
-                    <span>Total de Bilhetes que Receberá:</span>
-                    <span className="font-mono text-sm font-black text-amber-400">{convertSummary.totalQty} Bilhetes</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>Custo Total da Conversão:</span>
-                    <span className="font-mono font-bold text-red-400">R$ {convertSummary.totalCost.toFixed(2)}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-slate-300 font-bold border-t border-slate-800 pt-2.5">
-                    <span>Saldo Restante Estimado:</span>
-                    <span className="font-mono text-emerald-400">R$ {convertSummary.remainingBalance.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex gap-2.5 items-start">
-                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-amber-200/90 leading-normal">
-                    <strong>Atenção:</strong> Os minutos/bilhetes correspondentes serão escolhidos aleatoriamente de forma automática entre os números disponíveis no sorteio. Esta ação não poderá ser desfeita.
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 justify-end mt-2">
-                <button
-                  onClick={() => setShowConvertConfirm(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-700 bg-transparent hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleConvertBalanceToMinutes}
-                  disabled={isConverting}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-colors shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-                >
-                  {isConverting ? "Convertendo..." : "Confirmar Conversão"}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
 
 
 
-        {showPixBoughtModal && recentBoughtTickets.length > 0 && (
+
+        <AnimatePresence>
+          {showPixBoughtModal && recentBoughtTickets.length > 0 && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md">
             <div className="absolute inset-0" onClick={() => setShowPixBoughtModal(false)} />
             

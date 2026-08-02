@@ -16,10 +16,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import Regulations from './pages/Regulations';
 import AllMatches from './pages/AllMatches';
 import AdminPixPremiado from './pages/AdminPixPremiado';
-import AdminMinutoCerto from './pages/AdminMinutoCerto';
 import AdminSorteios from './pages/AdminSorteios';
 import AdminBolao from './pages/AdminBolao';
-import UserMinutoCerto from './pages/UserMinutoCerto';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, profile, loading } = useAuth();
@@ -45,7 +43,6 @@ export default function App() {
             <Route path="matches" element={<AllMatches />} />
             <Route path="match/:id" element={<MatchDetails />} />
             <Route path="panel" element={<ProtectedRoute><UserPanel /></ProtectedRoute>} />
-            <Route path="minuto-certo" element={<ProtectedRoute><UserMinutoCerto /></ProtectedRoute>} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="regulamento" element={<Regulations />} />
             <Route path="admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
@@ -53,7 +50,6 @@ export default function App() {
             <Route path="admin/logs" element={<ProtectedRoute adminOnly><AdminLogs /></ProtectedRoute>} />
             <Route path="admin/transactions" element={<ProtectedRoute adminOnly><AdminTransactions /></ProtectedRoute>} />
             <Route path="admin/pix-premiado" element={<ProtectedRoute adminOnly><AdminPixPremiado /></ProtectedRoute>} />
-            <Route path="admin/minuto-certo" element={<ProtectedRoute adminOnly><AdminMinutoCerto /></ProtectedRoute>} />
             <Route path="admin/sorteios" element={<ProtectedRoute adminOnly><AdminSorteios /></ProtectedRoute>} />
             <Route path="admin/bolao" element={<ProtectedRoute adminOnly><AdminBolao /></ProtectedRoute>} />
           </Route>

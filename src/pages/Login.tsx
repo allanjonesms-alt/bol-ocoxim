@@ -4,7 +4,8 @@ import { signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopu
 import { doc, getDoc, getDocFromCache, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { Trophy } from 'lucide-react';
-import logoImg from '../assets/images/logo.jpg';
+import { isAdminEmail } from '../lib/utils';
+import logoImg from '../assets/images/pix_coxim_logo_1784559379366.jpg';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -55,7 +56,7 @@ export default function Login() {
         }
         
         if (!docSnap || !docSnap.exists()) {
-          const userRole = formEmail.toLowerCase().startsWith('allanjonesms') ? 'admin' : 'user';
+          const userRole = isAdminEmail(formEmail) ? 'admin' : 'user';
           await setDoc(userRef, {
             name: userCredential.user.displayName || formEmail.split('@')[0],
             email: formEmail,
@@ -118,7 +119,7 @@ export default function Login() {
         }
         
         if (!docSnap || !docSnap.exists()) {
-          const userRole = userEmail.toLowerCase().startsWith('allanjonesms') ? 'admin' : 'user';
+          const userRole = isAdminEmail(userEmail) ? 'admin' : 'user';
           await setDoc(userRef, {
             name: userCredential.user.displayName || userEmail.split('@')[0],
             email: userEmail,

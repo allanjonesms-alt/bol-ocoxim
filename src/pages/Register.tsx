@@ -5,7 +5,8 @@ import { doc, setDoc, getDoc, getDocFromCache, serverTimestamp, collection, quer
 import { auth, db } from '../lib/firebase';
 import { Trophy } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
-import logoImg from '../assets/images/logo.jpg';
+import { isAdminEmail } from '../lib/utils';
+import logoImg from '../assets/images/pix_coxim_logo_1784559379366.jpg';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -49,7 +50,7 @@ export default function Register() {
       // Update basic Auth profile
       await updateProfile(userCredential.user, { displayName: name });
       
-      const userRole = email.startsWith('allanjonesms') ? 'admin' : 'user';
+      const userRole = isAdminEmail(email) ? 'admin' : 'user';
       
       // Compute ID
       const nextId = await getNextAvailableId();
@@ -112,7 +113,7 @@ export default function Register() {
           const nextId = await getNextAvailableId();
           const displayId = nextId.toString().padStart(3, '0');
           
-          const userRole = userEmail.toLowerCase().startsWith('allanjonesms') ? 'admin' : 'user';
+          const userRole = isAdminEmail(userEmail) ? 'admin' : 'user';
           await setDoc(userRef, {
             name: userCredential.user.displayName || userEmail.split('@')[0],
             email: userEmail,

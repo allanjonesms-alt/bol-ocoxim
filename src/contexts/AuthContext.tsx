@@ -3,6 +3,7 @@ import { User, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile } from '../types';
+import { isAdminEmail } from '../lib/utils';
 
 interface AuthContextType {
   user: User | null;
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const unsubProfile = onSnapshot(doc(db, 'users', currUser.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            const isMatch = currUser.email ? currUser.email.toLowerCase().startsWith('allanjonesms') : false;
+            const isMatch = isAdminEmail(currUser.email);
             const role = isMatch ? 'admin' : data?.role || 'user';
             
             if (isMatch && data?.role !== 'admin') {

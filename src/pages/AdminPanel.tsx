@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { collection, query, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, runTransaction, getDocs, where, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Match, Transaction, UserProfile, Bet } from '../types';
+import { Match, Transaction, UserProfile, Bet, PixPremiadoGame } from '../types';
 import { Link } from 'react-router-dom';
 
 const processImage = (file: File): Promise<string> => {
@@ -34,6 +34,7 @@ export default function AdminPanel() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [bets, setBets] = useState<Bet[]>([]);
+  const [pixGames, setPixGames] = useState<PixPremiadoGame[]>([]);
   const [pendingBetAction, setPendingBetAction] = useState<{ type: 'approve' | 'reject'; bet: Bet } | null>(null);
   
   const [newMatchTeam1, setNewMatchTeam1] = useState('');
@@ -244,6 +245,9 @@ export default function AdminPanel() {
     const unsubBets = onSnapshot(collection(db, 'bets'), (snapshot) => {
       setBets(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Bet)));
     });
+    const unsubPixGames = onSnapshot(collection(db, 'pix_premiado_games'), (snapshot) => {
+      setPixGames(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PixPremiadoGame)));
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'pix_premiado_games'));
     const unsubSettings = onSnapshot(doc(db, 'settings', 'winnersSection'), (d) => {
       if (d.exists()) {
         const data = d.data();
@@ -257,7 +261,7 @@ export default function AdminPanel() {
       }
     });
 
-    return () => { unsubMatches(); unsubTrans(); unsubUsers(); unsubBets(); unsubSettings(); };
+    return () => { unsubMatches(); unsubTrans(); unsubUsers(); unsubBets(); unsubPixGames(); unsubSettings(); };
   }, []);
 
   const handleAddMatch = async (e: FormEvent) => {
@@ -822,11 +826,17 @@ export default function AdminPanel() {
 
   const totalSiteBalance = users.reduce((sum, u) => sum + (u.balance || 0), 0);
 
-  const totalApostado = bets.filter(b => b.status === "confirmed").reduce((sum, b) => {
+  const totalPlacaresApostado = bets.filter(b => b.status === "confirmed").reduce((sum, b) => {
     const m = matches.find(m => m.id === b.matchId);
-    if (!m || m.status === 'finished') return sum;
-    return sum + (b.amount || (m.isPromotional ? 2 : 5));
+    return sum + (b.amount || (m?.isPromotional ? 2 : 5));
   }, 0);
+
+  const totalPixPremiadoApostado = pixGames.reduce((sum, g) => {
+    const p = typeof g.price === 'number' && !isNaN(g.price) ? g.price : ((g as any).totalCost || 1);
+    return sum + p;
+  }, 0);
+
+  const totalApostado = totalPlacaresApostado + totalPixPremiadoApostado;
 
   const totalCaixa = bets.filter(b => b.status === "confirmed").reduce((sum, b) => {
     const m = matches.find(m => m.id === b.matchId);
@@ -858,8 +868,11 @@ export default function AdminPanel() {
           
           <div className="bg-white rounded-2xl p-4 shadow-md text-slate-800 flex items-center gap-4 border border-slate-200">
             <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-0.5">Apostado</p>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-0.5">Apostado Total</p>
               <p className="text-2xl font-mono font-bold tracking-tight">R$ {totalApostado.toFixed(2)}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                Palpites: R$ {totalPlacaresApostado.toFixed(2)} | Sorteios: R$ {totalPixPremiadoApostado.toFixed(2)}
+              </p>
             </div>
           </div>
 
@@ -1075,7 +1088,7 @@ export default function AdminPanel() {
           </div>
           <div className="text-center">
             <h3 className="font-display font-bold text-slate-800 text-base uppercase tracking-wider mb-1">Sorteios</h3>
-            <p className="text-xs text-slate-500 font-medium">Gestão integrada do PIX Premiado e do Minuto Certo.</p>
+            <p className="text-xs text-slate-500 font-medium">Gestão integrada do PIX Premiado.</p>
           </div>
         </Link>
       </div>
