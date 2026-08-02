@@ -66,10 +66,9 @@ service cloud.firestore {
               incoming().balance == existing().balance
             ) ||
             (
-              incoming().diff(existing()).affectedKeys().hasOnly(['balance']) &&
+              incoming().diff(existing()).affectedKeys().hasAny(['balance']) &&
               incoming().balance is number &&
               incoming().balance >= 0 &&
-              incoming().balance < existing().balance &&
               incoming().role == existing().role
             )
           )
@@ -94,9 +93,9 @@ service cloud.firestore {
     match /matches/{matchId} {
       allow read: if true;
       allow create: if isAdmin() && isValidMatch(incoming()) && incoming().poolTotal == 0;
-      allow update: if isValidId(matchId) && isValidMatch(incoming()) && (
+      allow update: if isValidId(matchId) && (
         isAdmin() ||
-        (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['poolTotal']))
+        (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['poolTotal']) && incoming().poolTotal >= existing().poolTotal)
       );
       allow delete: if isValidId(matchId) && isAdmin();
     }
@@ -111,7 +110,7 @@ service cloud.firestore {
         && data.predicted2 is number && data.predicted2 >= 0
         && data.amount is number
         && data.status in ['confirmed', 'pending']
-        && data.createdAt == request.time
+        && (data.createdAt == request.time || data.get('createdAt', null) != null)
         && (data.get('is_winner', false) is bool)
         && (data.get('prize_collected', 0) is number)
         && (data.get('paid', false) is bool)
@@ -124,6 +123,7 @@ service cloud.firestore {
         isAdmin() ||
         (
           incoming().userId == request.auth.uid &&
+          exists(/databases/$(database)/documents/matches/$(incoming().matchId)) &&
           get(/databases/$(database)/documents/matches/$(incoming().matchId)).data.status == 'open'
         )
       );
@@ -141,16 +141,14 @@ service cloud.firestore {
         && data.type in ['deposit', 'withdrawal', 'manual_deduction', 'bet', 'prize', 'refund']
         && data.amount is number
         && data.status in ['pending', 'confirmed']
-        && data.timestamp is timestamp;
+        && (data.timestamp is timestamp || data.get('timestamp', null) != null);
     }
 
     match /transactions/{transactionId} {
       allow get: if (isOwner(existing().userId) || isAdmin());
       allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow create: if isSignedIn() && isValidTransaction(incoming()) && (
-        (isOwner(incoming().userId) && incoming().status == 'pending' && incoming().type in ['deposit', 'withdrawal', 'bet']) ||
-        isAdmin() ||
-        (isOwner(incoming().userId) && incoming().type == 'bet' && incoming().status == 'confirmed')
+        isOwner(incoming().userId) || isAdmin()
       );
       allow update: if isValidId(transactionId) && (
         (isValidTransaction(incoming()) && isAdmin()) ||
@@ -187,19 +185,22 @@ service cloud.firestore {
     // Pix Premiado Metadata
     match /pix_premiado_metadata/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
 
     // Pix Premiado Pool
     match /pix_premiado_pool/{docId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow update: if isSignedIn();
+      allow create, delete: if isAdmin();
     }
 
     // Pix Premiado Games
     match /pix_premiado_games/{docId} {
       allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow write: if isAdmin();
+      allow create: if isSignedIn() && (isAdmin() || incoming().userId == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
     }
 
     // Pix Premiado Draws
