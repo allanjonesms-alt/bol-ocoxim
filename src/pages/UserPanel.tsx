@@ -8,6 +8,8 @@ import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import { QrCode, Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, Trophy, X, Copy, Check, Sparkles, Award, Calendar, Trash2 } from 'lucide-react';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 import { calculatePixTicketPrice } from '../utils/pixPricing';
+import { generatePixPayload } from '../utils/pix';
+import PixPaymentCard from '../components/PixPaymentCard';
 
 export default function UserPanel() {
   const { user, profile } = useAuth();
@@ -126,7 +128,7 @@ export default function UserPanel() {
   }, [profile]);
 
   
-  const pixCode = '00020126360014BR.GOV.BCB.PIX0114+55679843730395204000053039865802BR5901N6001C62140510BOLAOCOXIM63049152';
+  const pixCode = generatePixPayload({ pixKey: 'ecbf2588-9b0b-48e7-bc17-57f66ca2dbff' });
 
   const handleCopyPix = async () => {
     try {
@@ -144,8 +146,13 @@ export default function UserPanel() {
   useEffect(() => {
     if (searchParams.get('openFinance') === 'true') {
       setShowFinanceModal(true);
+      const amountVal = searchParams.get('amount');
+      if (amountVal) {
+        setDepositAmount(amountVal);
+      }
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openFinance');
+      newParams.delete('amount');
       setSearchParams(newParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -271,8 +278,13 @@ export default function UserPanel() {
     const currentBalance = profile.balance || 0;
 
     if (currentBalance < totalCost) {
-      setPixToast({ message: `Você não possui saldo suficiente (Saldo: R$ ${currentBalance.toFixed(2)} / Custo: R$ ${totalCost.toFixed(2)}).`, type: 'error' });
-      setTimeout(() => setPixToast(null), 4000);
+      setPixToast({
+        message: `Saldo insuficiente! Saldo atual: R$ ${currentBalance.toFixed(2)} / Custo: R$ ${totalCost.toFixed(2)}. Informe o depósito de R$ ${totalCost.toFixed(2)} abaixo.`,
+        type: 'error'
+      });
+      setTimeout(() => setPixToast(null), 5000);
+      setDepositAmount(totalCost.toFixed(2));
+      setShowFinanceModal(true);
       return;
     }
 
@@ -563,57 +575,11 @@ export default function UserPanel() {
                   </button>
                 </div>
               ) : (
-                <div className="mt-auto flex flex-col items-center bg-white p-5 rounded-xl border border-emerald-100 relative shadow-sm">
-                  <img 
-                    src="https://lh3.googleusercontent.com/d/1b4csBjKmNy33G5G1lo3lB_Alfb-_bzkf" 
-                    alt="PIX QR Code" 
-                    className="w-48 h-48 object-contain mb-3 rounded-lg" 
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://docs.google.com/uc?export=download&id=1b4csBjKmNy33G5G1lo3lB_Alfb-_bzkf";
-                    }}
-                  />
-                  <p className="text-xs text-center text-slate-600 font-medium mb-3">Escaneie o QR Code no seu app de banco.</p>
-                  
-                  {/* Pix Copia e Cola */}
-                  <div className="w-full mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col text-left">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Pix Copia e Cola</span>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value={pixCode} 
-                        className="w-full text-xs font-mono text-slate-700 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none select-all overflow-hidden text-ellipsis"
-                      />
-                      <button 
-                        onClick={handleCopyPix}
-                        type="button"
-                        className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
-                          copiedPix 
-                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        }`}
-                        title="Copiar Código Pix"
-                      >
-                        {copiedPix ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        {copiedPix ? 'Copiado!' : 'Copiar'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={handleConfirmPayment}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-2.5 px-4 transition-colors text-sm uppercase shadow-md mb-2 cursor-pointer"
-                  >
-                    EFETUEI O PAGAMENTO
-                  </button>
-                  <button 
-                    onClick={() => setShowPix(false)} 
-                    className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-wider cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                </div>
+                <PixPaymentCard
+                  amount={parseFloat(depositAmount) || 0}
+                  onConfirmPayment={handleConfirmPayment}
+                  onCancel={() => setShowPix(false)}
+                />
               )}
             </div>
 
@@ -963,57 +929,11 @@ export default function UserPanel() {
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-auto flex flex-col items-center bg-white p-5 rounded-xl border border-emerald-100 relative animate-fade-in shadow-sm">
-                    <img 
-                      src="https://lh3.googleusercontent.com/d/1b4csBjKmNy33G5G1lo3lB_Alfb-_bzkf" 
-                      alt="PIX QR Code" 
-                      className="w-48 h-48 object-contain mb-3 rounded-lg" 
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://docs.google.com/uc?export=download&id=1b4csBjKmNy33G5G1lo3lB_Alfb-_bzkf";
-                      }}
-                    />
-                    <p className="text-xs text-center text-slate-700 font-semibold mb-3">Escaneie o QR Code no seu app de banco.</p>
-                    
-                    {/* Pix Copia e Cola */}
-                    <div className="w-full mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col text-left">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Pix Copia e Cola</span>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={pixCode} 
-                          className="w-full text-xs font-mono text-slate-700 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none select-all overflow-hidden text-ellipsis"
-                        />
-                        <button 
-                          onClick={handleCopyPix}
-                          type="button"
-                          className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
-                            copiedPix 
-                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                          }`}
-                          title="Copiar Código Pix"
-                        >
-                          {copiedPix ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                          {copiedPix ? 'Copiado!' : 'Copiar'}
-                        </button>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={handleConfirmPayment}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-2.5 px-4 transition-colors text-sm uppercase shadow-md mb-2 cursor-pointer"
-                    >
-                      EFETUEI O PAGAMENTO
-                    </button>
-                    <button 
-                      onClick={() => setShowPix(false)} 
-                      className="text-xs font-bold text-slate-400 hover:text-slate-650 uppercase tracking-wider cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
+                  <PixPaymentCard
+                    amount={parseFloat(depositAmount) || 0}
+                    onConfirmPayment={handleConfirmPayment}
+                    onCancel={() => setShowPix(false)}
+                  />
                 )}
               </div>
 

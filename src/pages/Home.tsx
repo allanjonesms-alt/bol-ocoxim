@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, doc, getDocs, where, runTransaction, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Match, Bet, UserProfile, PixPremiadoDraw, PixPremiadoGame } from '../types';
@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'motion/react';
 // Teste de alteração para verificação de commit no GitHub
 
 export default function Home() {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [activePixDraws, setActivePixDraws] = useState<PixPremiadoDraw[]>([]);
   const [isPurchasingPix, setIsPurchasingPix] = useState(false);
@@ -136,7 +137,8 @@ export default function Home() {
     const currentBalance = profile.balance || 0;
 
     if (currentBalance < totalCost) {
-      showToast(`Você não possui saldo suficiente (Saldo: R$ ${currentBalance.toFixed(2)} / Custo: R$ ${totalCost.toFixed(2)}). Por favor, recarregue seu saldo no Painel do Usuário!`, 'error');
+      showToast(`Você não possui saldo suficiente (Saldo: R$ ${currentBalance.toFixed(2)} / Custo: R$ ${totalCost.toFixed(2)}). Redirecionando para movimentação financeira...`, 'error');
+      navigate(`/panel?openFinance=true&amount=${totalCost.toFixed(2)}`);
       return;
     }
 
@@ -465,7 +467,7 @@ export default function Home() {
           }
         }
       } catch (e) {
-        console.error("Failed to fetch live matches", e);
+        console.warn("Unable to fetch live matches:", e);
       }
     };
     

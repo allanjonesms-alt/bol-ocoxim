@@ -38,7 +38,7 @@ export default function MatchDetails() {
           }
         }
       } catch (e) {
-        console.error("Failed to fetch live matches", e);
+        console.warn("Unable to fetch live matches:", e);
       }
     };
     

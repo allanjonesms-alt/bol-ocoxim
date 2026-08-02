@@ -43,6 +43,7 @@ export default function App() {
             <Route path="matches" element={<AllMatches />} />
             <Route path="match/:id" element={<MatchDetails />} />
             <Route path="panel" element={<ProtectedRoute><UserPanel /></ProtectedRoute>} />
+            <Route path="user-panel" element={<ProtectedRoute><UserPanel /></ProtectedRoute>} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="regulamento" element={<Regulations />} />
             <Route path="admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
