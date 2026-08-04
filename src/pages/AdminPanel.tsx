@@ -1315,26 +1315,38 @@ export default function AdminPanel() {
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                     URL do Webhook (Cole no Mercado Pago)
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={`${window.location.origin}/api/mercadopago/webhook`}
-                      className="w-full p-3.5 border border-slate-200 rounded-xl bg-slate-100 text-slate-600 font-mono text-xs select-all outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/api/mercadopago/webhook`);
-                        setCopiedWebhookUrl(true);
-                        setTimeout(() => setCopiedWebhookUrl(false), 3000);
-                      }}
-                      className="bg-slate-800 hover:bg-slate-900 text-white px-4 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                    >
-                      {copiedWebhookUrl ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                      <span>{copiedWebhookUrl ? 'Copiado!' : 'Copiar'}</span>
-                    </button>
-                  </div>
+                  {(() => {
+                    const webhookUrl = window.location.origin.includes('ais-dev-')
+                      ? `${window.location.origin.replace('ais-dev-', 'ais-pre-')}/api/mercadopago/webhook`
+                      : `${window.location.origin}/api/mercadopago/webhook`;
+                    return (
+                      <div className="space-y-1.5">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={webhookUrl}
+                            className="w-full p-3.5 border border-slate-200 rounded-xl bg-slate-100 text-slate-700 font-mono text-xs select-all outline-none font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(webhookUrl);
+                              setCopiedWebhookUrl(true);
+                              setTimeout(() => setCopiedWebhookUrl(false), 3000);
+                            }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-sm"
+                          >
+                            {copiedWebhookUrl ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
+                            <span>{copiedWebhookUrl ? 'Copiado!' : 'Copiar URL'}</span>
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          📌 Esta é a URL pública de produção (<code>ais-pre-...</code>) para cadastrar no painel de Notificações/Webhooks do Mercado Pago.
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
