@@ -80,7 +80,7 @@ export const PixPaymentCard: React.FC<PixPaymentCardProps> = ({
       </div>
 
       <p className="text-xs text-center text-slate-600 font-medium mb-4 max-w-xs leading-relaxed">
-        Escaneie o QR Code no app do seu banco. O valor de <strong className="text-slate-800 font-bold">R$ {amount.toFixed(2).replace('.', ',')}</strong> já virá preenchido automaticamente!
+        Escaneie o QR Code no app do seu banco para o valor de <strong className="text-slate-800 font-bold">R$ {amount.toFixed(2).replace('.', ',')}</strong>.
       </p>
 
       {/* Pix Copia e Cola */}
@@ -89,9 +89,6 @@ export const PixPaymentCard: React.FC<PixPaymentCardProps> = ({
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             Pix Copia e Cola
-          </span>
-          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-100/60 px-1.5 py-0.5 rounded">
-            Com valor incluso
           </span>
         </div>
         

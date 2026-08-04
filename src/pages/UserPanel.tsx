@@ -529,7 +529,7 @@ export default function UserPanel() {
             onClick={() => setShowFinanceModal(true)}
             className="w-full bg-slate-50 hover:bg-slate-100/80 p-5 rounded-2xl border border-slate-200 hover:border-emerald-500/30 transition-all flex flex-col items-center relative z-10 group cursor-pointer focus:outline-none"
           >
-            <span className="text-sm font-semibold text-slate-555 group-hover:text-emerald-700 transition-colors uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-slate-500 group-hover:text-emerald-700 transition-colors uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Wallet className="h-4 w-4 text-emerald-600" /> Saldo Disponível
             </span>
             <span className="text-4xl font-bold text-emerald-700 font-mono group-hover:scale-105 transition-transform duration-200">
@@ -545,7 +545,7 @@ export default function UserPanel() {
         <div className="bg-white rounded-3xl shadow-md border border-slate-200 p-8 md:col-span-2 flex flex-col relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/5 rounded-full blur-[60px] pointer-events-none"></div>
           
-          <h3 className="text-xl font-display font-bold text-slate-850 mb-6 flex items-center relative z-10">
+          <h3 className="text-xl font-display font-bold text-slate-800 mb-6 flex items-center relative z-10">
             <Wallet className="h-6 w-6 mr-3 text-slate-500" />
             Movimentação Financeira
           </h3>
@@ -570,7 +570,7 @@ export default function UserPanel() {
                       placeholder="0.00"
                     />
                   </div>
-                  <button onClick={handleDepositRequest} className="w-full bg-emerald-605 hover:bg-emerald-705 text-white font-bold rounded-xl py-3.5 transition-colors shadow-md shadow-emerald-500/10 cursor-pointer">
+                  <button onClick={handleDepositRequest} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3.5 transition-colors shadow-md shadow-emerald-500/20 cursor-pointer">
                     Gerar PIX
                   </button>
                 </div>
@@ -586,12 +586,12 @@ export default function UserPanel() {
             {/* Withdraw */}
             <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-6 flex flex-col shadow-inner">
               <h4 className="font-bold text-slate-800 mb-2 flex items-center text-lg">
-                <ArrowUpFromLine className="h-5 w-5 mr-2 text-slate-555" /> Sacar
+                <ArrowUpFromLine className="h-5 w-5 mr-2 text-slate-500" /> Sacar
               </h4>
               <p className="text-xs text-slate-500 mb-6 font-medium leading-relaxed">Solicite o saque do seu saldo. O administrador fará a transferência para sua chave PIX.</p>
               
               {!requestWithdraw ? (
-                <button onClick={() => setRequestWithdraw(true)} className="mt-auto w-full bg-slate-150 hover:bg-slate-250 text-slate-700 border border-slate-200/80 rounded-xl py-3.5 font-bold transition-colors cursor-pointer">
+                <button onClick={() => setRequestWithdraw(true)} className="mt-auto w-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl py-3.5 font-bold transition-colors cursor-pointer">
                   Solicitar Saque
                 </button>
               ) : (
@@ -604,7 +604,7 @@ export default function UserPanel() {
                         value={pixKeyInput} 
                         onChange={e => setPixKeyInput(e.target.value)} 
                         placeholder="Digite sua chave PIX aqui..."
-                        className="w-full px-4 py-2.5 bg-white border border-red-200 focus:border-red-450 rounded-xl outline-none text-slate-800 text-xs font-mono"
+                        className="w-full px-4 py-2.5 bg-white border border-red-200 focus:border-red-400 rounded-xl outline-none text-slate-800 text-xs font-mono"
                       />
                     </div>
                   )}
@@ -622,7 +622,7 @@ export default function UserPanel() {
                     <button onClick={handleWithdrawRequest} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3.5 transition-colors cursor-pointer">
                       Confirmar
                     </button>
-                    <button onClick={() => setRequestWithdraw(false)} className="px-5 bg-slate-200 hover:bg-slate-300 text-slate-705 rounded-xl font-bold transition-colors border border-slate-250 cursor-pointer">
+                    <button onClick={() => setRequestWithdraw(false)} className="px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors border border-slate-300 cursor-pointer">
                       Sair
                     </button>
                   </div>
@@ -920,11 +920,11 @@ export default function UserPanel() {
                         type="number" 
                         value={depositAmount} 
                         onChange={e => setDepositAmount(e.target.value)} 
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/35 text-slate-850 font-mono font-bold"
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/35 text-slate-800 font-mono font-bold"
                         placeholder="0.00"
                       />
                     </div>
-                    <button onClick={handleDepositRequest} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3.5 transition-colors shadow-md shadow-emerald-550/10 cursor-pointer">
+                    <button onClick={handleDepositRequest} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3.5 transition-colors shadow-md shadow-emerald-500/20 cursor-pointer">
                       Gerar PIX
                     </button>
                   </div>
@@ -940,12 +940,12 @@ export default function UserPanel() {
               {/* Withdraw */}
               <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-6 flex flex-col shadow-inner">
                 <h4 className="font-bold text-slate-800 mb-2 flex items-center text-lg">
-                  <ArrowUpFromLine className="h-5 w-5 mr-2 text-slate-505" /> Sacar
+                  <ArrowUpFromLine className="h-5 w-5 mr-2 text-slate-500" /> Sacar
                 </h4>
                 <p className="text-xs text-slate-500 mb-6 font-medium leading-relaxed">Solicite o saque do seu saldo. O administrador fará a transferência para sua chave PIX.</p>
                 
                 {!requestWithdraw ? (
-                  <button onClick={() => setRequestWithdraw(true)} className="mt-auto w-full bg-slate-200 hover:bg-slate-250 text-slate-700 border border-slate-250 rounded-xl py-3.5 font-bold transition-colors cursor-pointer">
+                  <button onClick={() => setRequestWithdraw(true)} className="mt-auto w-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl py-3.5 font-bold transition-colors cursor-pointer">
                     Solicitar Saque
                   </button>
                 ) : (
@@ -958,7 +958,7 @@ export default function UserPanel() {
                           value={pixKeyInput} 
                           onChange={e => setPixKeyInput(e.target.value)} 
                           placeholder="Digite sua chave PIX aqui..."
-                          className="w-full px-4 py-2.5 bg-white border border-red-200 focus:border-red-450 rounded-xl outline-none text-slate-800 text-xs font-mono"
+                          className="w-full px-4 py-2.5 bg-white border border-red-200 focus:border-red-400 rounded-xl outline-none text-slate-800 text-xs font-mono"
                         />
                       </div>
                     )}
@@ -976,7 +976,7 @@ export default function UserPanel() {
                       <button onClick={handleWithdrawRequest} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3.5 transition-colors cursor-pointer">
                         Confirmar
                       </button>
-                      <button onClick={() => setRequestWithdraw(false)} className="px-5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-colors border border-slate-250 cursor-pointer">
+                      <button onClick={() => setRequestWithdraw(false)} className="px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors border border-slate-300 cursor-pointer">
                         Sair
                       </button>
                     </div>
@@ -988,7 +988,7 @@ export default function UserPanel() {
             <div className="mt-8 flex justify-end">
               <button 
                 onClick={() => setShowFinanceModal(false)}
-                className="bg-slate-150 hover:bg-slate-250 text-slate-705 px-6 py-2.5 rounded-xl text-sm font-bold border border-slate-250 transition duration-150 cursor-pointer"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl text-sm font-bold border border-slate-300 transition duration-150 cursor-pointer"
               >
                 Fechar
               </button>

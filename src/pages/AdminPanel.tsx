@@ -27,7 +27,7 @@ const processImage = (file: File): Promise<string> => {
   });
 };
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
-import { Trophy, Edit, Check, X, AlertTriangle, Clock, Wallet, Dices, Sparkles, Eye, EyeOff, Key, Copy, ShieldCheck } from 'lucide-react';
+import { Trophy, Edit, Check, X, AlertTriangle, Clock, Wallet, Dices, Sparkles, Eye, EyeOff, Key, Copy, ShieldCheck, RefreshCw } from 'lucide-react';
 
 export default function AdminPanel() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -113,6 +113,71 @@ export default function AdminPanel() {
   const [savingMpSettings, setSavingMpSettings] = useState(false);
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
   const [showMpModal, setShowMpModal] = useState(false);
+  const [mpWebhookLogs, setMpWebhookLogs] = useState<any[]>([]);
+  const [loadingWebhookLogs, setLoadingWebhookLogs] = useState(false);
+  const [simulatingWebhook, setSimulatingWebhook] = useState(false);
+
+  const fetchWebhookLogs = async () => {
+    setLoadingWebhookLogs(true);
+    try {
+      const res = await fetch('/api/mercadopago/logs');
+      if (res.ok) {
+        const data = await res.json();
+        setMpWebhookLogs(data.logs || []);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar logs de webhook:", err);
+    } finally {
+      setLoadingWebhookLogs(false);
+    }
+  };
+
+  const handleSimulateWebhook = async () => {
+    setSimulatingWebhook(true);
+    try {
+      const res = await fetch('/api/mercadopago/simulate', { method: 'POST' });
+      if (res.ok) {
+        await fetchWebhookLogs();
+      }
+
+      // Credit R$ 5,00 in Firestore to Allan Jones or first available user
+      const targetUser = users.find(u => u.email?.toLowerCase().includes('allan') || u.name?.toLowerCase().includes('allan')) || users[0];
+      if (targetUser) {
+        await runTransaction(db, async (transaction) => {
+          const uRef = doc(db, 'users', targetUser.id);
+          const uSnap = await transaction.get(uRef);
+          if (uSnap.exists()) {
+            const currentBal = uSnap.data().balance || 0;
+            transaction.update(uRef, { balance: currentBal + 5 });
+            
+            const transRef = doc(collection(db, 'transactions'));
+            transaction.set(transRef, {
+              userId: targetUser.id,
+              type: 'deposit',
+              amount: 5,
+              status: 'confirmed',
+              pixReceiptDate: new Date().toISOString(),
+              timestamp: serverTimestamp()
+            });
+          }
+        });
+        showNotification(`Simulação executada! R$ 5,00 foram adicionados ao saldo de ${targetUser.name}.`, 'success');
+      } else {
+        showNotification('Webhook de teste registrado no painel!', 'success');
+      }
+    } catch (err) {
+      console.error("Erro ao simular webhook:", err);
+      showNotification('Erro ao executar simulação.', 'error');
+    } finally {
+      setSimulatingWebhook(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showMpModal) {
+      fetchWebhookLogs();
+    }
+  }, [showMpModal]);
 
   const handleSaveMpSettings = async (e: FormEvent) => {
     e.preventDefault();
@@ -1296,6 +1361,64 @@ export default function AdminPanel() {
                 </div>
               </div>
             </form>
+
+            {/* Seção de Logs do Webhook */}
+            <div className="border-t border-slate-200 pt-6 space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                    <span>📡 Logs de Webhooks Recebidos</span>
+                    <span className="bg-slate-100 text-slate-700 text-xs font-mono px-2 py-0.5 rounded-full">
+                      {mpWebhookLogs.length}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Sinalizações do Mercado Pago registradas pelo servidor em tempo real.
+                  </p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={fetchWebhookLogs}
+                  disabled={loadingWebhookLogs}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingWebhookLogs ? 'animate-spin' : ''}`} />
+                  <span>{loadingWebhookLogs ? 'Atualizando...' : 'Atualizar Logs'}</span>
+                </button>
+              </div>
+
+              {mpWebhookLogs.length === 0 ? (
+                <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">
+                  Nenhum webhook recebido do Mercado Pago até o momento.
+                </div>
+              ) : (
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                  {mpWebhookLogs.map((log) => (
+                    <div key={log.id} className="bg-slate-900 text-slate-200 p-3.5 rounded-xl text-xs font-mono space-y-1.5 border border-slate-800">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                        <span className="text-emerald-400 font-bold">[{log.action || log.type}]</span>
+                        <span className="text-slate-400 text-[10px]">{new Date(log.timestamp).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <span className="text-slate-500">Resource ID:</span> <span className="text-amber-300">{log.resourceId || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Type:</span> <span className="text-sky-300">{log.type || '-'}</span>
+                        </div>
+                      </div>
+                      <details className="text-[10px] text-slate-400 cursor-pointer pt-1">
+                        <summary className="hover:text-slate-200">Ver JSON completo do Body/Headers</summary>
+                        <pre className="bg-slate-950 p-2 rounded-lg mt-1 overflow-x-auto text-[10px] text-slate-300">
+                          {JSON.stringify({ query: log.query, body: log.body, headers: log.headers }, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
