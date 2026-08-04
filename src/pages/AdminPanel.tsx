@@ -27,7 +27,7 @@ const processImage = (file: File): Promise<string> => {
   });
 };
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
-import { Trophy, Edit, Check, X, AlertTriangle, Clock, Wallet, Dices, Sparkles } from 'lucide-react';
+import { Trophy, Edit, Check, X, AlertTriangle, Clock, Wallet, Dices, Sparkles, Eye, EyeOff, Key, Copy, ShieldCheck } from 'lucide-react';
 
 export default function AdminPanel() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -103,6 +103,34 @@ export default function AdminPanel() {
   const [winnersMatchId, setWinnersMatchId] = useState<string>('');
   const [winnersActive, setWinnersActive] = useState<boolean>(false);
   const [savingWinnersSection, setSavingWinnersSection] = useState(false);
+
+  // Mercado Pago Settings
+  const [mpAccessToken, setMpAccessToken] = useState('');
+  const [mpWebhookSecret, setMpWebhookSecret] = useState('');
+  const [mpPixKey, setMpPixKey] = useState('ecbf2588-9b0b-48e7-bc17-57f66ca2dbff');
+  const [showAccessToken, setShowAccessToken] = useState(false);
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
+  const [savingMpSettings, setSavingMpSettings] = useState(false);
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
+
+  const handleSaveMpSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    setSavingMpSettings(true);
+    try {
+      await setDoc(doc(db, 'settings', 'mercadopago'), {
+        accessToken: mpAccessToken.trim(),
+        webhookSecret: mpWebhookSecret.trim(),
+        pixKey: mpPixKey.trim(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      showNotification('Configurações do Mercado Pago salvas com sucesso!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'settings');
+      showNotification('Erro ao salvar configurações do Mercado Pago.', 'error');
+    } finally {
+      setSavingMpSettings(false);
+    }
+  };
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -261,7 +289,16 @@ export default function AdminPanel() {
       }
     });
 
-    return () => { unsubMatches(); unsubTrans(); unsubUsers(); unsubBets(); unsubPixGames(); unsubSettings(); };
+    const unsubMpSettings = onSnapshot(doc(db, 'settings', 'mercadopago'), (d) => {
+      if (d.exists()) {
+        const data = d.data();
+        setMpAccessToken(data.accessToken || '');
+        setMpWebhookSecret(data.webhookSecret || '');
+        if (data.pixKey) setMpPixKey(data.pixKey);
+      }
+    });
+
+    return () => { unsubMatches(); unsubTrans(); unsubUsers(); unsubBets(); unsubPixGames(); unsubSettings(); unsubMpSettings(); };
   }, []);
 
   const handleAddMatch = async (e: FormEvent) => {
@@ -1018,6 +1055,136 @@ export default function AdminPanel() {
           </div>
         </div>
       </div>
+
+      {/* Configuração da Integração Mercado Pago */}
+      <div className="bg-white p-8 rounded-3xl shadow-md border border-slate-200">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+          <div>
+            <h2 className="font-display font-bold text-slate-800 text-lg uppercase tracking-wider flex items-center gap-2">
+              <ShieldCheck className="w-6 h-6 text-emerald-600" />
+              Integração Mercado Pago (PIX Automático & Webhook)
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Configure aqui o Access Token e o Secret do Webhook para autenticar e receber confirmações automáticas de pagamentos PIX.
+            </p>
+          </div>
+          <span className={`px-3 py-1 text-xs font-bold rounded-full border ${mpAccessToken ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+            {mpAccessToken ? 'Conectado' : 'Aguardando Token'}
+          </span>
+        </div>
+
+        <form onSubmit={handleSaveMpSettings} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Access Token */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Access Token (Mercado Pago)</span>
+                <span className="text-[10px] text-slate-400 font-normal">Ex: APP_USR-...</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showAccessToken ? 'text' : 'password'}
+                  placeholder="APP_USR-xxxx-xxxx-xxxx"
+                  value={mpAccessToken}
+                  onChange={e => setMpAccessToken(e.target.value)}
+                  className="w-full p-3.5 pr-12 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all font-mono text-xs text-slate-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAccessToken(!showAccessToken)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  title={showAccessToken ? "Ocultar" : "Exibir"}
+                >
+                  {showAccessToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Webhook Secret */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>WEBHOOK_SECRET (Segredo de Validação x-signature)</span>
+                <span className="text-[10px] text-slate-400 font-normal">Ex: 8f9a...</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showWebhookSecret ? 'text' : 'password'}
+                  placeholder="Digite o Secret de Webhook das Suas Aplicações"
+                  value={mpWebhookSecret}
+                  onChange={e => setMpWebhookSecret(e.target.value)}
+                  className="w-full p-3.5 pr-12 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all font-mono text-xs text-slate-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowWebhookSecret(!showWebhookSecret)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  title={showWebhookSecret ? "Ocultar" : "Exibir"}
+                >
+                  {showWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Chave PIX Padrão */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Chave PIX Cadastrada no Sistema
+              </label>
+              <input
+                type="text"
+                placeholder="ecbf2588-9b0b-48e7-bc17-57f66ca2dbff"
+                value={mpPixKey}
+                onChange={e => setMpPixKey(e.target.value)}
+                className="w-full p-3.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all font-mono text-xs text-slate-800"
+              />
+            </div>
+
+            {/* URL do Webhook para colar no Mercado Pago */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                URL do Webhook (Cole no Painel do Mercado Pago)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.origin}/api/mercadopago/webhook`}
+                  className="w-full p-3.5 border border-slate-200 rounded-xl bg-slate-100 text-slate-600 font-mono text-xs select-all outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/api/mercadopago/webhook`);
+                    setCopiedWebhookUrl(true);
+                    setTimeout(() => setCopiedWebhookUrl(false), 3000);
+                  }}
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-4 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                >
+                  {copiedWebhookUrl ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedWebhookUrl ? 'Copiado!' : 'Copiar'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-xs text-slate-500">
+              💡 Os dados são armazenados na coleção <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-700">settings/mercadopago</code>.
+            </div>
+            <button
+              type="submit"
+              disabled={savingMpSettings}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            >
+              <Key className="w-4 h-4" />
+              <span>{savingMpSettings ? 'Salvando...' : 'Salvar Configurações do Mercado Pago'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
 
 
 

@@ -2,7 +2,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { collection, onSnapshot, doc, runTransaction, serverTimestamp, getDocs, deleteDoc, writeBatch, query, where, limit, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, PixPremiadoGame, PixPremiadoDraw } from '../types';
-import { ArrowLeft, Check, X, Sparkles, RefreshCw, Trophy, Trash2, ShieldCheck, Dices, Coins, AlertCircle, CalendarDays, Plus, Edit2, Search, Ticket, FileText, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Check, X, Sparkles, RefreshCw, Trophy, Trash2, ShieldCheck, Dices, Coins, AlertCircle, CalendarDays, Plus, Edit2, Search, Ticket, FileText, CheckCircle2, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 
@@ -59,6 +59,7 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [games, setGames] = useState<PixPremiadoGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleTicketsLimit, setVisibleTicketsLimit] = useState<number>(100);
 
   // Pool Metadata State
   const [poolMetadata, setPoolMetadata] = useState<{
@@ -1610,7 +1611,7 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                 </tr>
               </thead>
               <tbody>
-                {games.map(g => (
+                {games.slice(0, visibleTicketsLimit).map(g => (
                   <tr key={g.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
                     <td className="py-4">
                       <p className="font-bold text-slate-800 text-sm leading-tight">{g.userName}</p>
@@ -1654,6 +1655,22 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                 ))}
               </tbody>
             </table>
+
+            {visibleTicketsLimit < games.length && (
+              <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-xs font-semibold text-slate-500">
+                  Exibindo os primeiros <span className="text-slate-800 font-bold">{Math.min(visibleTicketsLimit, games.length)}</span> de <span className="text-slate-800 font-bold">{games.length}</span> bilhetes (ordem decrescente de compra)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setVisibleTicketsLimit(prev => prev + 100)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-2"
+                >
+                  <span>Ver Mais (+100)</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

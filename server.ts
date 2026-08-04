@@ -5,6 +5,8 @@ import { createServer as createViteServer } from "vite";
 const app = express();
 const PORT = 3000;
 
+app.use(express.json());
+
 // Set up the API Key internally to not expose it on the client
 // Ideally this should be in an env file but adding here explicitly for testing as per request
 const API_SPORTS_KEY = "8de59a4031f42b90cb806ee846244604";
@@ -46,6 +48,20 @@ app.get("/api/live-matches", async (req, res) => {
        return res.json({ success: false, fromCache: true, error: error.message, data: cachedFixtures, lastFetchTime });
     }
     return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Mercado Pago Webhook Notification Receiver
+app.post("/api/mercadopago/webhook", async (req, res) => {
+  try {
+    const { action, type, data } = req.body;
+    console.log("Mercado Pago Webhook Received:", { action, type, id: data?.id, query: req.query });
+    
+    // Always acknowledge receipt to Mercado Pago
+    return res.status(200).json({ received: true, timestamp: new Date().toISOString() });
+  } catch (err: any) {
+    console.error("Error processing Mercado Pago Webhook:", err);
+    return res.status(200).json({ received: true, error: err.message });
   }
 });
 

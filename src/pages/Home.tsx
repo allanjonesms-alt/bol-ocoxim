@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, doc, getDocs, where, runTransaction, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Match, Bet, UserProfile, PixPremiadoDraw, PixPremiadoGame } from '../types';
-import { Trophy, CalendarClock, ChevronRight, CheckCircle2, Lock, Radio, Flame, Crown, Calendar, Lightbulb, AlertCircle, Download, FileText, Medal, CircleDollarSign, X, AlertTriangle, Clock, Sparkles } from 'lucide-react';
+import { Trophy, CalendarClock, ChevronRight, CheckCircle2, Lock, Radio, Flame, Crown, Calendar, Lightbulb, AlertCircle, Download, FileText, Medal, CircleDollarSign, X, AlertTriangle, Clock, Sparkles, Ticket } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import MatchCountdown from '../components/MatchCountdown';
@@ -24,6 +24,7 @@ export default function Home() {
   const [pixTicketCount, setPixTicketCount] = useState('1');
   const [recentBoughtTickets, setRecentBoughtTickets] = useState<any[]>([]);
   const [showPixBoughtModal, setShowPixBoughtModal] = useState(false);
+  const [userRaffleGames, setUserRaffleGames] = useState<PixPremiadoGame[]>([]);
 
   useEffect(() => {
     const q = query(collection(db, 'pix_premiado_draws'), where('status', '==', 'active'));
@@ -33,6 +34,24 @@ export default function Home() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setUserRaffleGames([]);
+      return;
+    }
+    const qRaffle = query(collection(db, 'pix_premiado_games'), where('userId', '==', user.uid));
+    const unsubRaffle = onSnapshot(qRaffle, (snapshot) => {
+      const raffleData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PixPremiadoGame));
+      raffleData.sort((a, b) => {
+        const timeA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+        const timeB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
+        return timeB - timeA;
+      });
+      setUserRaffleGames(raffleData);
+    });
+    return () => unsubRaffle();
+  }, [user]);
 
   const [matches, setMatches] = useState<Match[]>(() => {
     try {
@@ -908,14 +927,114 @@ export default function Home() {
         </div>
       )}
 
-      {matches.length === 0 ? (
-        <div className="text-center bg-white p-12 rounded-3xl shadow-md border border-slate-200 flex flex-col items-center">
-          <div className="bg-slate-50 p-4 rounded-full mb-4 border border-slate-100">
-            <CalendarClock className="h-8 w-8 text-slate-400" />
+      {/* Seção de Bilhetes Adquiridos pelo Usuário Logado */}
+      {user && (
+        <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 text-white rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl border border-indigo-500/30 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.15),transparent_50%)] pointer-events-none"></div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10 border-b border-indigo-500/20 pb-5">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 flex items-center gap-2.5">
+                <Ticket className="w-6 h-6 text-yellow-400 shrink-0" />
+                <span>Seus Bilhetes Adquiridos</span>
+                <span className="bg-amber-400 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm shrink-0">
+                  {userRaffleGames.length}
+                </span>
+              </h2>
+              <p className="text-slate-300 text-xs sm:text-sm mt-1 font-medium">
+                Acompanhe aqui os seus bilhetes ativos registrados no PIX PREMIADO.
+              </p>
+            </div>
+
+            <Link
+              to="/panel"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl border border-indigo-400/30 transition-all flex items-center gap-1.5 self-start sm:self-center whitespace-nowrap shadow-md cursor-pointer"
+            >
+              <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+              <span>Gerenciar no Painel</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-          <h2 className="text-lg font-bold text-slate-800">Nenhum jogo cadastrado ainda</h2>
-          <p className="text-slate-500 text-sm mt-1">Volte mais tarde para conferir os próximos jogos.</p>
+
+          {userRaffleGames.length === 0 ? (
+            <div className="text-center py-10 px-4 bg-slate-900/60 border border-dashed border-indigo-500/30 rounded-2xl relative z-10 flex flex-col items-center">
+              <Ticket className="w-10 h-10 text-indigo-400/50 mb-3" />
+              <p className="text-slate-300 font-semibold text-sm">
+                Você ainda não adquiriu nenhum bilhete.
+              </p>
+              <p className="text-slate-400 text-xs mt-1 max-w-md">
+                Escolha uma das opções acima do PIX PREMIADO para garantir suas dezenas e participar dos próximos sorteios!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+              {userRaffleGames.slice(0, 6).map((game) => (
+                <div
+                  key={game.id}
+                  className="bg-slate-900/80 border border-indigo-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-400/60 hover:bg-slate-900 transition-all shadow-md"
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                      <span>🎟️</span>
+                      <span>Bilhete Ativo</span>
+                    </span>
+                    <span className="text-[10px] font-semibold text-indigo-300">
+                      {game.createdAt ? (game.createdAt.toDate ? game.createdAt.toDate().toLocaleDateString('pt-BR') : new Date(game.createdAt).toLocaleDateString('pt-BR')) : '-'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-center my-3 bg-slate-950 p-3 rounded-xl border border-indigo-950 shadow-inner">
+                    {game.numbers.length === 1 ? (
+                      <span className="px-5 py-2 bg-gradient-to-r from-indigo-900 to-indigo-950 border border-indigo-500/40 text-yellow-400 font-mono text-xl font-black rounded-xl tracking-wider shadow-md">
+                        Nº {String(game.numbers[0]).padStart(4, '0')}
+                      </span>
+                    ) : (
+                      <div className="flex gap-1.5 justify-center flex-wrap">
+                        {game.numbers.map((num, i) => (
+                          <span
+                            key={i}
+                            className="w-8 h-8 rounded-full bg-slate-950 text-yellow-400 font-mono font-black text-xs flex items-center justify-center border border-indigo-500/35 shadow-sm"
+                          >
+                            {String(num).padStart(2, '0')}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center border-t border-indigo-500/10 pt-2.5 mt-1 text-xs">
+                    <span className="text-slate-400 text-[11px]">Valor pago:</span>
+                    <span className="font-mono font-bold text-yellow-300">R$ {game.price.toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+
+              {userRaffleGames.length > 6 && (
+                <div className="sm:col-span-2 lg:col-span-3 text-center pt-2">
+                  <Link
+                    to="/panel"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-yellow-400 hover:text-yellow-300 transition-colors uppercase tracking-wider bg-yellow-400/10 hover:bg-yellow-400/20 px-4 py-2 rounded-xl border border-yellow-400/20"
+                  >
+                    <span>Ver todos os {userRaffleGames.length} bilhetes no seu Painel</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+      )}
+
+      {matches.length === 0 ? (
+        !user && (
+          <div className="text-center bg-white p-12 rounded-3xl shadow-md border border-slate-200 flex flex-col items-center">
+            <div className="bg-slate-50 p-4 rounded-full mb-4 border border-slate-100">
+              <CalendarClock className="h-8 w-8 text-slate-400" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800">Nenhum jogo cadastrado ainda</h2>
+            <p className="text-slate-500 text-sm mt-1">Volte mais tarde para conferir os próximos jogos.</p>
+          </div>
+        )
       ) : (
         <div className="space-y-12">
           {/* Jogos Ao Vivo / Em Andamento */}
