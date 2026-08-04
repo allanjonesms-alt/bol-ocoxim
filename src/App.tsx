@@ -18,6 +18,7 @@ import AllMatches from './pages/AllMatches';
 import AdminPixPremiado from './pages/AdminPixPremiado';
 import AdminSorteios from './pages/AdminSorteios';
 import AdminBolao from './pages/AdminBolao';
+import AdminWebhookLogs from './pages/AdminWebhookLogs';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, profile, loading } = useAuth();
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="admin/pix-premiado" element={<ProtectedRoute adminOnly><AdminPixPremiado /></ProtectedRoute>} />
             <Route path="admin/sorteios" element={<ProtectedRoute adminOnly><AdminSorteios /></ProtectedRoute>} />
             <Route path="admin/bolao" element={<ProtectedRoute adminOnly><AdminBolao /></ProtectedRoute>} />
+            <Route path="admin/webhook-logs" element={<ProtectedRoute adminOnly><AdminWebhookLogs /></ProtectedRoute>} />
           </Route>
         </Routes>
       </BrowserRouter>

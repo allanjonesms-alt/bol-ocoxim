@@ -27,7 +27,7 @@ const processImage = (file: File): Promise<string> => {
   });
 };
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
-import { Trophy, Edit, Check, X, AlertTriangle, Clock, Wallet, Dices, Sparkles, Eye, EyeOff, Key, Copy, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Trophy, Edit, Check, X, AlertTriangle, Clock, Wallet, Dices, Sparkles, Eye, EyeOff, Key, Copy, ShieldCheck, RefreshCw, Activity } from 'lucide-react';
 
 export default function AdminPanel() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -1192,6 +1192,19 @@ export default function AdminPanel() {
             <p className="text-xs text-slate-500 font-medium">Gestão integrada do PIX Premiado.</p>
           </div>
         </Link>
+        <Link 
+          to="/admin/webhook-logs" 
+          className="bg-white p-6 rounded-3xl shadow-md border border-slate-200 hover:border-emerald-400 hover:shadow-lg transition-all group relative overflow-hidden flex flex-col justify-center items-center gap-3 cursor-pointer"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-[50px] pointer-events-none group-hover:bg-emerald-500/10 transition-colors"></div>
+          <div className="bg-emerald-50 p-4 rounded-full text-emerald-600 group-hover:scale-110 group-hover:bg-emerald-100 transition-all flex items-center justify-center relative">
+            <Activity className="w-8 h-8 text-emerald-600" />
+          </div>
+          <div className="text-center">
+            <h3 className="font-display font-bold text-slate-800 text-base uppercase tracking-wider mb-1">Logs Webhook MP</h3>
+            <p className="text-xs text-slate-500 font-medium">Inspeção de requisições do Mercado Pago.</p>
+          </div>
+        </Link>
         <button 
           type="button"
           onClick={() => setShowMpModal(true)}
@@ -1344,6 +1357,16 @@ export default function AdminPanel() {
                         <p className="text-[11px] text-slate-500">
                           📌 Esta é a URL pública de produção (<code>ais-pre-...</code>) para cadastrar no painel de Notificações/Webhooks do Mercado Pago.
                         </p>
+                        <div className="pt-2">
+                          <Link
+                            to="/admin/webhook-logs"
+                            onClick={() => setShowMpModal(false)}
+                            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-colors shadow-sm"
+                          >
+                            <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Ver Logs Brutos do Webhook (Diagnóstico)</span>
+                          </Link>
+                        </div>
                       </div>
                     );
                   })()}
