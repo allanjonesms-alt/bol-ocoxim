@@ -19,9 +19,17 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        (request.auth.token.email != null && (request.auth.token.email == 'allanjonesms@gmail.com' || request.auth.token.email.matches('(?i)^allanjonesms.*'))) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email == 'allanjonesms@gmail.com' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.matches('(?i)^allanjonesms.*'))) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'allanjonesms@gmail.com' || 
+          request.auth.token.email.matches('(?i)^allanjonesms.*') ||
+          request.auth.token.email.matches('(?i)^gislene.*')
+        )) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email == 'allanjonesms@gmail.com' || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.matches('(?i)^allanjonesms.*') ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.matches('(?i)^gislene.*') ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        ))
       );
     }
 

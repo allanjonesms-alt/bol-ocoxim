@@ -983,9 +983,9 @@ export default function Home() {
                     </span>
                   </div>
 
-                  <div className="flex justify-center my-3 bg-slate-950 p-3 rounded-xl border border-indigo-950 shadow-inner">
+                  <div className="flex justify-center my-3 bg-slate-950 p-3.5 rounded-xl border border-indigo-950 shadow-inner">
                     {game.numbers.length === 1 ? (
-                      <span className="px-5 py-2 bg-gradient-to-r from-indigo-900 to-indigo-950 border border-indigo-500/40 text-yellow-400 font-mono text-xl font-black rounded-xl tracking-wider shadow-md">
+                      <span className="px-5 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-mono text-xl font-black rounded-xl tracking-wider shadow-md">
                         Nº {String(game.numbers[0]).padStart(4, '0')}
                       </span>
                     ) : (
@@ -993,7 +993,7 @@ export default function Home() {
                         {game.numbers.map((num, i) => (
                           <span
                             key={i}
-                            className="w-8 h-8 rounded-full bg-slate-950 text-yellow-400 font-mono font-black text-xs flex items-center justify-center border border-indigo-500/35 shadow-sm"
+                            className="px-2.5 py-1 rounded-lg bg-yellow-400 text-slate-950 font-mono font-black text-xs flex items-center justify-center shadow-xs"
                           >
                             {String(num).padStart(2, '0')}
                           </span>

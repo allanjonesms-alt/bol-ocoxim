@@ -5,7 +5,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Bet, Transaction, Match, PixPremiadoGame, UserProfile, PixPremiadoDraw } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
-import { QrCode, Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, Trophy, X, Copy, Check, Sparkles, Award, Calendar, Trash2 } from 'lucide-react';
+import { QrCode, Wallet, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle2, Trophy, X, Copy, Check, Sparkles, Award, Calendar, Search, Filter, LayoutGrid, List } from 'lucide-react';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 import { calculatePixTicketPrice } from '../utils/pixPricing';
 import { generatePixPayload } from '../utils/pix';
@@ -25,93 +25,11 @@ export default function UserPanel() {
   const [pixToast, setPixToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [recentBoughtTickets, setRecentBoughtTickets] = useState<any[]>([]);
   const [showPixBoughtModal, setShowPixBoughtModal] = useState(false);
-
-  // Refund and delete ticket states/logic
-  const [ticketToRefund, setTicketToRefund] = useState<PixPremiadoGame | null>(null);
-  const [isDeletingTicketId, setIsDeletingTicketId] = useState<string | null>(null);
-
-  const handleRefundTicket = async (game: PixPremiadoGame) => {
-    if (!user || !profile) return;
-    setIsDeletingTicketId(game.id);
-    try {
-      await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', game.userId);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error('Perfil de usuário não encontrado.');
-
-        const freshProfile = userSnap.data() as UserProfile;
-        const freshBalance = freshProfile.balance || 0;
-
-        // Refund user balance
-        const refundedBalance = freshBalance + game.price;
-        transaction.update(userRef, { balance: refundedBalance });
-
-        // Log transaction
-        const transRef = doc(collection(db, 'transactions'));
-        transaction.set(transRef, {
-          userId: game.userId,
-          type: 'refund',
-          amount: game.price,
-          status: 'confirmed',
-          timestamp: serverTimestamp(),
-          description: `Cancelamento de bilhete Pix Premiado #${game.id} - Reembolso de R$ ${game.price.toFixed(2)}`
-        });
-
-        // Delete game document
-        const gameRef = doc(db, 'pix_premiado_games', game.id);
-        transaction.delete(gameRef);
-      });
-
-      // Update pool doc to not assigned (if it was a pool game)
-      if (game.numbers.length > 1) {
-        try {
-          const poolQuery = query(
-            collection(db, 'pix_premiado_pool'),
-            where('assigned', '==', true),
-            where('assignedUserId', '==', game.userId)
-          );
-          const poolSnap = await getDocs(poolQuery);
-          const gameNumbersStr = game.numbers.join('-');
-          const matchingPoolDoc = poolSnap.docs.find(d => {
-            const numbers = d.data().numbers as number[];
-            return numbers && numbers.join('-') === gameNumbersStr;
-          });
-
-          if (matchingPoolDoc) {
-            await updateDoc(doc(db, 'pix_premiado_pool', matchingPoolDoc.id), {
-              assigned: false,
-              assignedUserId: null,
-              assignedUserName: null,
-              assignedAt: null
-            });
-
-            // Update metadata count
-            const metaRef = doc(db, 'pix_premiado_metadata', 'pool');
-            await runTransaction(db, async (transaction) => {
-              const metaSnap = await transaction.get(metaRef);
-              const currentAssigned = metaSnap.exists() ? (metaSnap.data().assignedGames || 0) : 0;
-              transaction.set(metaRef, {
-                assignedGames: Math.max(0, currentAssigned - 1)
-              }, { merge: true });
-            });
-          }
-        } catch (poolErr) {
-          console.error("Error releasing pool ticket or updating metadata:", poolErr);
-        }
-      }
-
-      setPixToast({ message: `Bilhete cancelado e R$ ${game.price.toFixed(2)} reembolsados com sucesso!`, type: 'success' });
-      setTimeout(() => setPixToast(null), 4000);
-    } catch (err: any) {
-      console.error(err);
-      setPixToast({ message: err.message || 'Erro ao cancelar bilhete.', type: 'error' });
-      setTimeout(() => setPixToast(null), 4000);
-    } finally {
-      setIsDeletingTicketId(null);
-      setTicketToRefund(null);
-    }
-  };
   
+  // Ticket search and view filter states
+  const [ticketSearchTerm, setTicketSearchTerm] = useState('');
+  const [ticketViewMode, setTicketViewMode] = useState<'grid' | 'list'>('grid');
+
   const [showPix, setShowPix] = useState(false);
   const [depositAmount, setDepositAmount] = useState('50');
   const [requestWithdraw, setRequestWithdraw] = useState(false);
@@ -773,50 +691,202 @@ export default function UserPanel() {
               Você não possui nenhum bilhete no sorteio ativo. Adquira na Página Inicial ou utilize a compra rápida acima!
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 relative z-10">
-              {raffleGames.map(game => (
-                <div key={game.id} className="bg-slate-900/60 border border-indigo-500/25 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-400/40 hover:bg-slate-900/90 transition-all shadow-lg shadow-slate-950/40">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-0.5 rounded-md">
-                      🎟️ Bilhete Ativo
-                    </span>
-                    <span className="text-[10px] font-semibold text-indigo-300">
-                      {game.createdAt ? (game.createdAt.toDate ? game.createdAt.toDate().toLocaleDateString('pt-BR') : new Date(game.createdAt).toLocaleDateString('pt-BR')) : '-'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-center mb-4 bg-slate-950/65 p-3.5 rounded-xl border border-indigo-950 shadow-inner">
-                    {game.numbers.length === 1 ? (
-                      <span className="px-5 py-2.5 bg-gradient-to-r from-indigo-900 to-indigo-950 border-2 border-indigo-500/40 text-yellow-400 font-mono text-xl font-black rounded-xl tracking-wider shadow-md">
-                        Nº {String(game.numbers[0]).padStart(4, '0')}
+            <div className="space-y-4 relative z-10">
+              {/* Toolbar: Busca rápida de números e modo de visualização */}
+              <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-slate-950/80 p-3.5 rounded-2xl border border-indigo-500/25">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={ticketSearchTerm}
+                    onChange={(e) => setTicketSearchTerm(e.target.value)}
+                    placeholder="Filtrar ou conferir número do bilhete (ex: 0523)..."
+                    className="w-full bg-slate-900 text-white placeholder-slate-400 text-xs font-bold pl-9 pr-8 py-2.5 rounded-xl border border-indigo-500/30 outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400"
+                  />
+                  {ticketSearchTerm && (
+                    <button 
+                      type="button"
+                      onClick={() => setTicketSearchTerm('')} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                  {(() => {
+                    const filteredRaffleGames = raffleGames.filter(game => {
+                      if (!ticketSearchTerm.trim()) return true;
+                      const term = ticketSearchTerm.trim().toLowerCase();
+                      const formattedNumbers = game.numbers.map(n => 
+                        game.numbers.length === 1 ? String(n).padStart(4, '0') : String(n).padStart(2, '0')
+                      ).join(' ');
+                      const rawNumbers = game.numbers.join(' ');
+                      return formattedNumbers.includes(term) || rawNumbers.includes(term);
+                    });
+
+                    return (
+                      <span className="text-[11px] font-bold text-slate-300 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                        Total: <strong className="text-yellow-400 font-mono">{filteredRaffleGames.length}</strong> {filteredRaffleGames.length === 1 ? 'bilhete' : 'bilhetes'}
                       </span>
-                    ) : (
-                      <div className="flex gap-2 justify-center flex-wrap">
-                        {game.numbers.map((num, i) => (
-                          <span key={i} className="w-9 h-9 rounded-full bg-slate-950 text-yellow-400 font-mono font-black text-sm flex items-center justify-center border-2 border-indigo-500/35 shadow-sm">
-                            {String(num).padStart(2, '0')}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex justify-between items-center border-t border-indigo-500/10 pt-3">
-                    <div className="flex flex-col text-left">
-                      <span className="text-[9px] text-indigo-300 uppercase font-bold tracking-wide">Custo:</span>
-                      <span className="font-mono font-extrabold text-yellow-300 text-xs">R$ {game.price.toFixed(2)}</span>
-                    </div>
+                    );
+                  })()}
+
+                  <div className="flex bg-slate-900 p-1 rounded-xl border border-indigo-500/30">
                     <button
                       type="button"
-                      onClick={() => setTicketToRefund(game)}
-                      className="px-3 py-1.5 rounded-xl border border-rose-500/20 hover:border-rose-500/40 text-rose-450 hover:text-rose-400 bg-rose-950/10 hover:bg-rose-950/25 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors"
+                      onClick={() => setTicketViewMode('grid')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        ticketViewMode === 'grid' 
+                          ? 'bg-yellow-400 text-slate-950 shadow-sm' 
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Visualização em Grade"
                     >
-                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                      <span>Cancelar</span>
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                      <span>Cards</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTicketViewMode('list')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        ticketViewMode === 'list' 
+                          ? 'bg-yellow-400 text-slate-950 shadow-sm' 
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Visualização em Lista Simples"
+                    >
+                      <List className="w-3.5 h-3.5" />
+                      <span>Lista</span>
                     </button>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {(() => {
+                const filteredRaffleGames = raffleGames.filter(game => {
+                  if (!ticketSearchTerm.trim()) return true;
+                  const term = ticketSearchTerm.trim().toLowerCase();
+                  const formattedNumbers = game.numbers.map(n => 
+                    game.numbers.length === 1 ? String(n).padStart(4, '0') : String(n).padStart(2, '0')
+                  ).join(' ');
+                  const rawNumbers = game.numbers.join(' ');
+                  return formattedNumbers.includes(term) || rawNumbers.includes(term);
+                });
+
+                if (filteredRaffleGames.length === 0) {
+                  return (
+                    <div className="bg-slate-900/60 p-8 rounded-2xl border border-indigo-500/20 text-center">
+                      <p className="text-xs text-slate-400 font-semibold">
+                        Nenhum bilhete encontrado para a busca "{ticketSearchTerm}".
+                      </p>
+                    </div>
+                  );
+                }
+
+                if (ticketViewMode === 'grid') {
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {filteredRaffleGames.map((game, idx) => (
+                        <div key={game.id} className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 flex flex-col justify-between hover:border-indigo-400/60 transition-all shadow-lg shadow-slate-950/40">
+                          <div>
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                                <span>🎟️</span>
+                                <span>Bilhete #{idx + 1}</span>
+                              </span>
+                              <span className="text-[10px] font-semibold text-indigo-300">
+                                {game.createdAt ? (game.createdAt.toDate ? game.createdAt.toDate().toLocaleDateString('pt-BR') : new Date(game.createdAt).toLocaleDateString('pt-BR')) : '-'}
+                              </span>
+                            </div>
+                            
+                            {/* Exibição dos Números */}
+                            <div className="bg-slate-950 p-3.5 rounded-xl border border-indigo-950 shadow-inner my-2 text-center">
+                              {game.numbers.length === 1 ? (
+                                <div>
+                                  <span className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider block mb-1">Número do Bilhete</span>
+                                  <span className="inline-block px-4 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-mono text-2xl font-black rounded-xl tracking-widest shadow-md">
+                                    Nº {String(game.numbers[0]).padStart(4, '0')}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider block mb-2">Dezenas do Bilhete</span>
+                                  <div className="flex gap-2 justify-center flex-wrap">
+                                    {game.numbers.map((num, i) => (
+                                      <span key={i} className="px-2.5 py-1 rounded-lg bg-yellow-400 text-slate-950 font-mono font-black text-sm flex items-center justify-center shadow-sm">
+                                        {String(num).padStart(2, '0')}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center border-t border-indigo-500/15 pt-3 mt-2">
+                            <div className="flex flex-col text-left">
+                              <span className="text-[9px] text-indigo-300 uppercase font-bold tracking-wide">Valor:</span>
+                              <span className="font-mono font-extrabold text-yellow-300 text-xs">R$ {game.price.toFixed(2)}</span>
+                            </div>
+                            
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span>Confirmado</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="bg-slate-950 border border-indigo-500/30 rounded-2xl overflow-hidden shadow-lg">
+                    <div className="bg-slate-900 px-4 py-2.5 border-b border-indigo-500/20 text-[10px] font-bold text-slate-400 uppercase tracking-wider grid grid-cols-12 gap-2">
+                      <span className="col-span-2 sm:col-span-1">#</span>
+                      <span className="col-span-6 sm:col-span-7">Número(s) do Bilhete</span>
+                      <span className="col-span-2 text-right">Valor</span>
+                      <span className="col-span-2 text-right">Status</span>
+                    </div>
+                    <div className="divide-y divide-indigo-950/80">
+                      {filteredRaffleGames.map((game, idx) => (
+                        <div key={game.id} className="px-4 py-3 grid grid-cols-12 gap-2 items-center hover:bg-slate-900/60 transition-colors">
+                          <span className="col-span-2 sm:col-span-1 font-mono text-xs font-bold text-indigo-400">
+                            #{idx + 1}
+                          </span>
+
+                          <div className="col-span-6 sm:col-span-7 flex flex-wrap gap-1.5 items-center">
+                            {game.numbers.length === 1 ? (
+                              <span className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-mono font-black text-sm rounded-lg tracking-wider shadow-xs">
+                                Nº {String(game.numbers[0]).padStart(4, '0')}
+                              </span>
+                            ) : (
+                              game.numbers.map((n, nIdx) => (
+                                <span key={nIdx} className="px-2 py-0.5 bg-yellow-400 text-slate-950 font-mono font-bold text-xs rounded shadow-xs">
+                                  {String(n).padStart(2, '0')}
+                                </span>
+                              ))
+                            )}
+                          </div>
+
+                          <span className="col-span-2 text-right font-mono font-bold text-yellow-300 text-xs">
+                            R$ {game.price.toFixed(2)}
+                          </span>
+
+                          <div className="col-span-2 flex justify-end">
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span className="hidden sm:inline">Confirmado</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1050,52 +1120,6 @@ export default function UserPanel() {
                 className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-yellow-400/10 hover:shadow-yellow-400/20 active:scale-95 cursor-pointer w-full"
               >
                 FECHAR & CONTINUAR
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {ticketToRefund && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
-          <div className="absolute inset-0" onClick={() => setTicketToRefund(null)} />
-          
-          <div className="relative w-full max-w-md bg-white text-slate-800 rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col gap-5 p-6 z-10 text-left animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-red-600 mb-2">
-              <Trash2 className="w-6 h-6 shrink-0" />
-              <h3 className="text-lg font-bold">Cancelar e Reembolsar Bilhete?</h3>
-            </div>
-
-            <p className="text-sm text-slate-500 leading-relaxed">
-              Tem certeza de que deseja cancelar seu bilhete Pix Premiado? O bilhete será removido permanentemente de seus registros e o valor de <strong className="text-emerald-700">R$ {ticketToRefund.price.toFixed(2)}</strong> será devolvido integralmente ao seu saldo.
-            </p>
-
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-150 space-y-2">
-              <span className="text-[10px] font-bold text-slate-450 uppercase block">Dezenas do Bilhete:</span>
-              <div className="flex flex-wrap gap-1.5 justify-start">
-                {ticketToRefund.numbers.map((num, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded bg-white text-indigo-900 font-mono font-bold text-sm border border-slate-200 shadow-sm">
-                    {ticketToRefund.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0')}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-3 justify-end mt-2">
-              <button
-                type="button"
-                onClick={() => setTicketToRefund(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-transparent hover:bg-slate-50 text-slate-500 text-xs font-bold uppercase cursor-pointer"
-              >
-                Voltar
-              </button>
-              <button
-                type="button"
-                disabled={!!isDeletingTicketId}
-                onClick={() => handleRefundTicket(ticketToRefund)}
-                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase cursor-pointer flex items-center justify-center gap-2"
-              >
-                {isDeletingTicketId ? "Cancelando..." : "Confirmar Reembolso"}
               </button>
             </div>
           </div>
