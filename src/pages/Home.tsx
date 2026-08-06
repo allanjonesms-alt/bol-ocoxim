@@ -967,59 +967,54 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
-              {userRaffleGames.slice(0, 6).map((game) => (
-                <div
-                  key={game.id}
-                  className="bg-slate-900/80 border border-indigo-500/30 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-400/60 hover:bg-slate-900 transition-all shadow-md"
-                >
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                      <span>🎟️</span>
-                      <span>Bilhete Ativo</span>
-                    </span>
-                    <span className="text-[10px] font-semibold text-indigo-300">
-                      {game.createdAt ? (game.createdAt.toDate ? game.createdAt.toDate().toLocaleDateString('pt-BR') : new Date(game.createdAt).toLocaleDateString('pt-BR')) : '-'}
-                    </span>
-                  </div>
+            <div className="space-y-4 relative z-10">
+              {(() => {
+                const groupedByDate = userRaffleGames.reduce<Record<string, PixPremiadoGame[]>>((acc, game) => {
+                  let dateStr = 'Data não registrada';
+                  if (game.createdAt) {
+                    const d = game.createdAt.toDate ? game.createdAt.toDate() : new Date(game.createdAt);
+                    if (!isNaN(d.getTime())) {
+                      dateStr = d.toLocaleDateString('pt-BR');
+                    }
+                  }
+                  if (!acc[dateStr]) acc[dateStr] = [];
+                  acc[dateStr].push(game);
+                  return acc;
+                }, {});
 
-                  <div className="flex justify-center my-3 bg-slate-950 p-3.5 rounded-xl border border-indigo-950 shadow-inner">
-                    {game.numbers.length === 1 ? (
-                      <span className="px-5 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-mono text-xl font-black rounded-xl tracking-wider shadow-md">
-                        Nº {String(game.numbers[0]).padStart(4, '0')}
-                      </span>
-                    ) : (
-                      <div className="flex gap-1.5 justify-center flex-wrap">
-                        {game.numbers.map((num, i) => (
-                          <span
-                            key={i}
-                            className="px-2.5 py-1 rounded-lg bg-yellow-400 text-slate-950 font-mono font-black text-xs flex items-center justify-center shadow-xs"
-                          >
-                            {String(num).padStart(2, '0')}
-                          </span>
-                        ))}
+                return (Object.entries(groupedByDate) as [string, PixPremiadoGame[]][]).map(([dateStr, gamesList]) => (
+                  <div key={dateStr} className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-5 shadow-lg space-y-3">
+                    <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
+                      <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                        <Calendar className="w-4 h-4 text-yellow-400 shrink-0" />
+                        <span>Data da Compra: <strong className="text-white font-mono text-sm">{dateStr}</strong></span>
                       </div>
-                    )}
-                  </div>
+                      <span className="text-[11px] font-bold text-slate-300 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
+                        {gamesList.length} {gamesList.length === 1 ? 'bilhete' : 'bilhetes'}
+                      </span>
+                    </div>
 
-                  <div className="flex justify-between items-center border-t border-indigo-500/10 pt-2.5 mt-1 text-xs">
-                    <span className="text-slate-400 text-[11px]">Valor pago:</span>
-                    <span className="font-mono font-bold text-yellow-300">R$ {game.price.toFixed(2)}</span>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {gamesList.flatMap((g) => g.numbers.map((num) => ({
+                        gameId: g.id,
+                        numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
+                        isFourDigit: g.numbers.length === 1
+                      }))).map((item, idx) => (
+                        <span
+                          key={`${item.gameId}-${idx}`}
+                          className={`font-mono font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center border transition-transform hover:scale-105 ${
+                            item.isFourDigit 
+                              ? 'px-3.5 py-1.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-sm border-amber-300'
+                              : 'px-3 py-1 bg-yellow-400 text-slate-950 text-xs border-yellow-300'
+                          }`}
+                        >
+                          {item.isFourDigit ? `Nº ${item.numStr}` : item.numStr}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-
-              {userRaffleGames.length > 6 && (
-                <div className="sm:col-span-2 lg:col-span-3 text-center pt-2">
-                  <Link
-                    to="/panel"
-                    className="inline-flex items-center gap-2 text-xs font-bold text-yellow-400 hover:text-yellow-300 transition-colors uppercase tracking-wider bg-yellow-400/10 hover:bg-yellow-400/20 px-4 py-2 rounded-xl border border-yellow-400/20"
-                  >
-                    <span>Ver todos os {userRaffleGames.length} bilhetes no seu Painel</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              )}
+                ));
+              })()}
             </div>
           )}
         </div>

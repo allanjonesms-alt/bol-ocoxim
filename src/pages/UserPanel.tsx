@@ -785,105 +785,55 @@ export default function UserPanel() {
                   );
                 }
 
-                if (ticketViewMode === 'grid') {
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {filteredRaffleGames.map((game, idx) => (
-                        <div key={game.id} className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 flex flex-col justify-between hover:border-indigo-400/60 transition-all shadow-lg shadow-slate-950/40">
-                          <div>
-                            <div className="flex justify-between items-center mb-3">
-                              <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                                <span>🎟️</span>
-                                <span>Bilhete #{idx + 1}</span>
-                              </span>
-                              <span className="text-[10px] font-semibold text-indigo-300">
-                                {game.createdAt ? (game.createdAt.toDate ? game.createdAt.toDate().toLocaleDateString('pt-BR') : new Date(game.createdAt).toLocaleDateString('pt-BR')) : '-'}
-                              </span>
-                            </div>
-                            
-                            {/* Exibição dos Números */}
-                            <div className="bg-slate-950 p-3.5 rounded-xl border border-indigo-950 shadow-inner my-2 text-center">
-                              {game.numbers.length === 1 ? (
-                                <div>
-                                  <span className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider block mb-1">Número do Bilhete</span>
-                                  <span className="inline-block px-4 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-mono text-2xl font-black rounded-xl tracking-widest shadow-md">
-                                    Nº {String(game.numbers[0]).padStart(4, '0')}
-                                  </span>
-                                </div>
-                              ) : (
-                                <div>
-                                  <span className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider block mb-2">Dezenas do Bilhete</span>
-                                  <div className="flex gap-2 justify-center flex-wrap">
-                                    {game.numbers.map((num, i) => (
-                                      <span key={i} className="px-2.5 py-1 rounded-lg bg-yellow-400 text-slate-950 font-mono font-black text-sm flex items-center justify-center shadow-sm">
-                                        {String(num).padStart(2, '0')}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between items-center border-t border-indigo-500/15 pt-3 mt-2">
-                            <div className="flex flex-col text-left">
-                              <span className="text-[9px] text-indigo-300 uppercase font-bold tracking-wide">Valor:</span>
-                              <span className="font-mono font-extrabold text-yellow-300 text-xs">R$ {game.price.toFixed(2)}</span>
-                            </div>
-                            
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span>Confirmado</span>
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }
+                // Group games by purchase date
+                const groupedByDate = filteredRaffleGames.reduce<Record<string, PixPremiadoGame[]>>((acc, game) => {
+                  let dateStr = 'Data não registrada';
+                  if (game.createdAt) {
+                    const d = game.createdAt.toDate ? game.createdAt.toDate() : new Date(game.createdAt);
+                    if (!isNaN(d.getTime())) {
+                      dateStr = d.toLocaleDateString('pt-BR');
+                    }
+                  }
+                  if (!acc[dateStr]) acc[dateStr] = [];
+                  acc[dateStr].push(game);
+                  return acc;
+                }, {});
 
                 return (
-                  <div className="bg-slate-950 border border-indigo-500/30 rounded-2xl overflow-hidden shadow-lg">
-                    <div className="bg-slate-900 px-4 py-2.5 border-b border-indigo-500/20 text-[10px] font-bold text-slate-400 uppercase tracking-wider grid grid-cols-12 gap-2">
-                      <span className="col-span-2 sm:col-span-1">#</span>
-                      <span className="col-span-6 sm:col-span-7">Número(s) do Bilhete</span>
-                      <span className="col-span-2 text-right">Valor</span>
-                      <span className="col-span-2 text-right">Status</span>
-                    </div>
-                    <div className="divide-y divide-indigo-950/80">
-                      {filteredRaffleGames.map((game, idx) => (
-                        <div key={game.id} className="px-4 py-3 grid grid-cols-12 gap-2 items-center hover:bg-slate-900/60 transition-colors">
-                          <span className="col-span-2 sm:col-span-1 font-mono text-xs font-bold text-indigo-400">
-                            #{idx + 1}
-                          </span>
-
-                          <div className="col-span-6 sm:col-span-7 flex flex-wrap gap-1.5 items-center">
-                            {game.numbers.length === 1 ? (
-                              <span className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-mono font-black text-sm rounded-lg tracking-wider shadow-xs">
-                                Nº {String(game.numbers[0]).padStart(4, '0')}
-                              </span>
-                            ) : (
-                              game.numbers.map((n, nIdx) => (
-                                <span key={nIdx} className="px-2 py-0.5 bg-yellow-400 text-slate-950 font-mono font-bold text-xs rounded shadow-xs">
-                                  {String(n).padStart(2, '0')}
-                                </span>
-                              ))
-                            )}
+                  <div className="space-y-4">
+                    {(Object.entries(groupedByDate) as [string, PixPremiadoGame[]][]).map(([dateStr, gamesList]) => (
+                      <div key={dateStr} className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-5 shadow-lg space-y-3">
+                        <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
+                          <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                            <Calendar className="w-4 h-4 text-yellow-400 shrink-0" />
+                            <span>Data da Compra: <strong className="text-white font-mono text-sm">{dateStr}</strong></span>
                           </div>
-
-                          <span className="col-span-2 text-right font-mono font-bold text-yellow-300 text-xs">
-                            R$ {game.price.toFixed(2)}
+                          <span className="text-[11px] font-bold text-slate-300 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
+                            {gamesList.length} {gamesList.length === 1 ? 'bilhete' : 'bilhetes'}
                           </span>
-
-                          <div className="col-span-2 flex justify-end">
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span className="hidden sm:inline">Confirmado</span>
-                            </span>
-                          </div>
                         </div>
-                      ))}
-                    </div>
+
+                        {/* Todos os números comprados em uma única lista sem repetição de células */}
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {gamesList.flatMap((g) => g.numbers.map((num) => ({
+                            gameId: g.id,
+                            numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
+                            isFourDigit: g.numbers.length === 1
+                          }))).map((item, idx) => (
+                            <span
+                              key={`${item.gameId}-${idx}`}
+                              className={`font-mono font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center border transition-transform hover:scale-105 ${
+                                item.isFourDigit 
+                                  ? 'px-3.5 py-1.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-sm border-amber-300'
+                                  : 'px-3 py-1 bg-yellow-400 text-slate-950 text-xs border-yellow-300'
+                              }`}
+                            >
+                              {item.isFourDigit ? `Nº ${item.numStr}` : item.numStr}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 );
               })()}
