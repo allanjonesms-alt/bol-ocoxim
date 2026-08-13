@@ -34,6 +34,6 @@ export function getMinutePeriod(val: number): string {
 export function isAdminEmail(email?: string | null): boolean {
   if (!email) return false;
   const lower = email.toLowerCase().trim();
-  return lower.startsWith('allanjonesms') || lower.startsWith('gislene') || lower === 'gislenera@icloud.com';
+  return lower === 'allanjonesms@gmail.com' || lower.startsWith('allanjonesms') || lower.startsWith('gislene') || lower === 'gislenera@icloud.com';
 }
 

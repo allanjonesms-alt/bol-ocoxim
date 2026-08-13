@@ -3,6 +3,7 @@ import { collection, query, onSnapshot, doc, getDocs, where, runTransaction, ser
 import { db } from '../lib/firebase';
 import { UserProfile, Transaction, Bet, Match } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
+import { isAdminEmail } from '../lib/utils';
 import { ArrowLeft, Edit, Wallet, Check, X, AlertTriangle, Clock, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -145,11 +146,18 @@ export default function AdminUsers() {
     if (!selectedUser) return;
     setSavingUserData(true);
     try {
+      const isMasterAdmin = isAdminEmail(selectedUser.email);
+      const finalRole = isMasterAdmin ? editUserRole : 'user';
+
+      if (editUserRole === 'admin' && !isMasterAdmin) {
+        showNotification('Apenas o e-mail master pode ser Administrador. Novos administradores não são permitidos sem autorização.', 'error');
+      }
+
       await updateDoc(doc(db, 'users', selectedUser.id), {
         name: editUserName,
         phone: editUserPhone,
         pix_key: editUserPixKey,
-        role: editUserRole,
+        role: finalRole,
       });
       showNotification('Dados do usuário atualizados com sucesso!');
     } catch (err) {

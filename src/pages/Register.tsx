@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, getDoc, getDocFromCache, serverTimestamp, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
@@ -9,6 +9,9 @@ import { isAdminEmail } from '../lib/utils';
 import logoImg from '../assets/images/pix_coxim_logo_1784559379366.jpg';
 
 export default function Register() {
+  const location = useLocation();
+  const locationState = location.state as { email?: string; infoMessage?: string } | null;
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -16,6 +19,20 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const paramEmail = searchParams.get('email');
+    const stateEmail = locationState?.email;
+    const targetEmail = stateEmail || paramEmail;
+
+    if (targetEmail) {
+      setEmail(targetEmail);
+    }
+    if (locationState?.infoMessage) {
+      setError(locationState.infoMessage);
+    }
+  }, [location, locationState]);
 
   const getNextAvailableId = async () => {
     try {

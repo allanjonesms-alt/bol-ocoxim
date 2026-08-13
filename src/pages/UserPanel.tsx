@@ -785,23 +785,33 @@ export default function UserPanel() {
                   );
                 }
 
-                // Group games by purchase date
-                const groupedByDate = filteredRaffleGames.reduce<Record<string, PixPremiadoGame[]>>((acc, game) => {
+                // Group games by purchase date and track latest date timestamp per group
+                const groupedByDate = filteredRaffleGames.reduce<Record<string, { time: number; games: PixPremiadoGame[] }>>((acc, game) => {
                   let dateStr = 'Data não registrada';
+                  let time = 0;
                   if (game.createdAt) {
                     const d = game.createdAt.toDate ? game.createdAt.toDate() : new Date(game.createdAt);
                     if (!isNaN(d.getTime())) {
                       dateStr = d.toLocaleDateString('pt-BR');
+                      time = d.getTime();
                     }
                   }
-                  if (!acc[dateStr]) acc[dateStr] = [];
-                  acc[dateStr].push(game);
+                  if (!acc[dateStr]) {
+                    acc[dateStr] = { time, games: [] };
+                  }
+                  acc[dateStr].games.push(game);
+                  if (time > acc[dateStr].time) {
+                    acc[dateStr].time = time;
+                  }
                   return acc;
                 }, {});
 
+                // Sort date groups chronologically descending (newest purchase date first)
+                const sortedGroups = (Object.entries(groupedByDate) as [string, { time: number; games: PixPremiadoGame[] }][]).sort((a, b) => b[1].time - a[1].time);
+
                 return (
                   <div className="space-y-4">
-                    {(Object.entries(groupedByDate) as [string, PixPremiadoGame[]][]).map(([dateStr, gamesList]) => (
+                    {sortedGroups.map(([dateStr, { games: gamesList }]) => (
                       <div key={dateStr} className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-5 shadow-lg space-y-3">
                         <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
                           <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
@@ -813,13 +823,14 @@ export default function UserPanel() {
                           </span>
                         </div>
 
-                        {/* Todos os números comprados em uma única lista sem repetição de células */}
+                        {/* Todos os números comprados ordenados de forma crescente para a data */}
                         <div className="flex flex-wrap gap-2 pt-1">
                           {gamesList.flatMap((g) => g.numbers.map((num) => ({
                             gameId: g.id,
+                            numVal: num,
                             numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
                             isFourDigit: g.numbers.length === 1
-                          }))).map((item, idx) => (
+                          }))).sort((a, b) => a.numVal - b.numVal).map((item, idx) => (
                             <span
                               key={`${item.gameId}-${idx}`}
                               className={`font-mono font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center border transition-transform hover:scale-105 ${

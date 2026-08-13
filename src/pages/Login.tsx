@@ -74,7 +74,13 @@ export default function Login() {
       navigate('/');
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-         setError('Credenciais inválidas. Se você tem certeza da senha, você pode ter criado esta conta usando Google Auth ou outro provedor. Tente a opção "Esqueci minha senha".');
+        navigate(`/register?email=${encodeURIComponent(formEmail)}`, {
+          state: {
+            email: formEmail,
+            infoMessage: 'Credenciais inválidas: você não possui cadastro com este e-mail. Preencha seus dados abaixo para criar sua conta.'
+          }
+        });
+        return;
       } else if (err.code === 'auth/network-request-failed' || (err.message && err.message.toLowerCase().includes('offline'))) {
          setError('Erro de conexão com o servidor. Verifique sua conexão e tente novamente.');
       } else {

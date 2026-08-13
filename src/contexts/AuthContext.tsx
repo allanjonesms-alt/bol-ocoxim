@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (docSnap.exists()) {
             const data = docSnap.data();
             const isMatch = isAdminEmail(currUser.email);
-            const role = isMatch ? 'admin' : data?.role || 'user';
+            const role = (isMatch || data?.role === 'admin') ? 'admin' : 'user';
             
             if (isMatch && data?.role !== 'admin') {
               updateDoc(doc(db, 'users', currUser.uid), { role: 'admin' }).catch(err => {

@@ -686,25 +686,22 @@ export default function Home() {
 
       {/* Sessão PIX PREMIADO */}
       {activePixDraws.length > 0 ? (
-        <div className="bg-gradient-to-r from-slate-950 via-indigo-955 to-slate-950 text-white rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden border border-indigo-500/30">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.12),transparent_50%)] pointer-events-none"></div>
+        <div className="bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white text-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-md relative overflow-hidden border-2 border-amber-300">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full blur-[70px] pointer-events-none"></div>
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
             <div>
-              <h2 className="text-xl sm:text-2xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 flex items-center gap-2.5">
-                <Sparkles className="w-6 h-6 text-yellow-400 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
+              <h2 className="text-xl sm:text-2xl font-display font-black text-amber-900 flex items-center gap-2.5">
+                <Sparkles className="w-6 h-6 text-amber-500 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
                 <span>PIX PREMIADO ATIVO</span>
-                <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm shrink-0 animate-pulse">Disponível</span>
+                <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0 animate-pulse">Disponível</span>
               </h2>
-              <p className="text-slate-300 text-xs sm:text-sm mt-1 font-medium">
-                Escolha a quantidade de bilhetes desejada e concorra! O sorteio é realizado diretamente com base na extração oficial.
-              </p>
             </div>
             <Link
               to="/panel"
-              className="bg-indigo-650/30 hover:bg-indigo-650/50 text-indigo-200 font-bold text-xs px-4 py-2 rounded-xl border border-indigo-500/30 transition-all flex items-center gap-1.5 self-start sm:self-center"
+              className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-4 py-2 rounded-xl border border-amber-300 transition-all flex items-center gap-1.5 self-start sm:self-center"
             >
-              <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+              <Trophy className="w-3.5 h-3.5 text-amber-600" />
               <span>Meus Bilhetes</span>
             </Link>
           </div>
@@ -712,47 +709,40 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
             {activePixDraws.map(draw => {
               return (
-                <div key={draw.id} className="lg:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-950/60 p-6 rounded-2xl border border-indigo-500/20 shadow-inner">
+                <div key={draw.id} className="lg:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-6 bg-white p-6 rounded-2xl border border-amber-200 shadow-sm">
                   
                   {/* Detalhes do Sorteio */}
                   <div className="md:col-span-3 lg:col-span-3 flex flex-col justify-between space-y-4">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="bg-indigo-900/60 text-indigo-200 font-bold text-[11px] px-3 py-1 rounded-md border border-indigo-700/30 uppercase tracking-wide">
+                        <span className="bg-amber-100 text-amber-900 font-bold text-[11px] px-3 py-1 rounded-md border border-amber-300 uppercase tracking-wide">
                           {draw.type === 'Loteria Federal' ? '🎰 LOTERIA FEDERAL' : '🔮 MEGA-SENA'}
-                        </span>
-                        <span className="bg-yellow-400/10 text-yellow-300 font-bold text-[11px] px-3 py-1 rounded-md border border-yellow-400/20">
-                          Preço: R$ 1,00/bilhete
                         </span>
                       </div>
 
-                      <h3 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2">
-                        {draw.type === 'Loteria Federal' ? 'Extração da Loteria Federal' : 'Sorteio Especial Mega-Sena'}
-                      </h3>
-
                       {draw.observations && (
-                        <div className="bg-slate-900/80 border border-indigo-950/50 p-3 rounded-xl text-slate-300 text-xs sm:text-sm font-medium italic whitespace-pre-wrap">
-                          <span className="text-yellow-400 font-bold not-italic block mb-1">Prêmio e Observações:</span>
+                        <div className="bg-amber-50/80 border border-amber-200 p-3 rounded-xl text-slate-700 text-xs sm:text-sm font-medium italic whitespace-pre-wrap">
+                          <span className="text-amber-800 font-bold not-italic block mb-1">Prêmio e Observações:</span>
                           {draw.observations}
                         </div>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-800/60">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400">
-                        <Calendar className="w-4.5 h-4.5 text-indigo-400 shrink-0" />
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-amber-100">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                        <Calendar className="w-4.5 h-4.5 text-amber-600 shrink-0" />
                         <div>
-                          <span className="block text-[10px] text-slate-500 font-bold uppercase">Data do Sorteio</span>
-                          <span className="font-semibold text-slate-200">
+                          <span className="block text-[10px] text-slate-400 font-bold uppercase">Data do Sorteio</span>
+                          <span className="font-semibold text-slate-800">
                             {draw.date ? draw.date.split('-').reverse().join('/') : '-'}
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400">
-                        <Clock className="w-4.5 h-4.5 text-indigo-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                        <Clock className="w-4.5 h-4.5 text-amber-600 shrink-0" />
                         <div>
-                          <span className="block text-[10px] text-slate-500 font-bold uppercase">Horário do Sorteio</span>
-                          <span className="font-semibold text-slate-200">
+                          <span className="block text-[10px] text-slate-400 font-bold uppercase">Horário do Sorteio</span>
+                          <span className="font-semibold text-slate-800">
                             {draw.time || '-'}
                           </span>
                         </div>
@@ -761,13 +751,13 @@ export default function Home() {
                   </div>
 
                   {/* Interface de Compra */}
-                  <div className="md:col-span-9 lg:col-span-9 bg-gradient-to-br from-indigo-950/40 to-slate-950 p-5 rounded-xl border border-indigo-500/15 flex flex-col justify-between space-y-4">
+                  <div className="md:col-span-9 lg:col-span-9 bg-amber-50/40 p-5 rounded-xl border border-amber-200/80 flex flex-col justify-between space-y-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                           Escolha a Quantidade de Bilhetes
                         </label>
-                        <span className="text-[11px] text-white font-black bg-red-600 border border-red-500 shadow-md shadow-red-600/40 px-3 py-1 rounded-full uppercase tracking-wider animate-pulse">
+                        <span className="text-[11px] text-white font-black bg-red-600 border border-red-500 shadow-xs px-3 py-1 rounded-full uppercase tracking-wider animate-pulse">
                           Até 30% OFF
                         </span>
                       </div>
@@ -792,8 +782,8 @@ export default function Home() {
                               onClick={() => setPixTicketCount(String(opt.count))}
                               className={`relative p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                                 isSelected
-                                  ? 'bg-gradient-to-br from-yellow-400/20 via-amber-400/10 to-transparent border-yellow-400 text-white ring-2 ring-yellow-400/30 shadow-lg shadow-yellow-400/10 scale-[1.02]'
-                                  : 'bg-slate-900/90 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-850'
+                                  ? 'bg-gradient-to-br from-amber-500/20 via-yellow-400/20 to-amber-50 border-amber-500 text-slate-900 ring-2 ring-amber-400/40 shadow-md scale-[1.02]'
+                                  : 'bg-white border-slate-200 hover:border-amber-300 text-slate-700 hover:bg-amber-50/50'
                               }`}
                             >
                               {opt.isPopular && (
@@ -803,22 +793,22 @@ export default function Home() {
                               )}
                               
                               <div className="flex justify-between items-center w-full mt-0.5">
-                                <span className="font-extrabold text-xs text-white">
+                                <span className="font-extrabold text-xs text-slate-900">
                                   {opt.count} {opt.count === 1 ? 'Bilhete' : 'Bilhetes'}
                                 </span>
                                 {pricing.discountPercent > 0 && (
-                                  <span className="bg-red-600 text-white font-black text-[10px] px-2 py-0.5 rounded-md shadow-md shadow-red-600/50 uppercase tracking-wider border border-red-400">
+                                  <span className="bg-red-600 text-white font-black text-[10px] px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider border border-red-400">
                                     -{pricing.discountPercent}%
                                   </span>
                                 )}
                               </div>
 
                               <div className="mt-2.5 flex items-baseline gap-1.5">
-                                <span className="font-mono font-black text-sm text-yellow-400">
+                                <span className="font-mono font-black text-sm text-amber-700">
                                   R$ {pricing.finalPrice.toFixed(2)}
                                 </span>
                                 {pricing.discountPercent > 0 && (
-                                  <span className="font-mono text-[10px] text-slate-500 line-through">
+                                  <span className="font-mono text-[10px] text-slate-400 line-through">
                                     R$ {pricing.originalPrice.toFixed(2)}
                                   </span>
                                 )}
@@ -836,10 +826,10 @@ export default function Home() {
                           max="1000"
                           value={pixTicketCount}
                           onChange={(e) => setPixTicketCount(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 pl-3 pr-10 text-xs font-semibold text-white placeholder-slate-500 font-mono outline-none"
+                          className="w-full bg-white border border-slate-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl py-2 pl-3 pr-10 text-xs font-semibold text-slate-900 placeholder-slate-400 font-mono outline-none shadow-xs"
                           placeholder="Outra quantidade personalizada..."
                         />
-                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-500">
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
                           un
                         </span>
                       </div>
@@ -852,15 +842,15 @@ export default function Home() {
 
                         return (
                           <>
-                            <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                            <div className="bg-white p-3 rounded-xl border border-amber-200/80 space-y-1 shadow-xs">
                               <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Total</span>
-                                <span className="text-yellow-400 text-base font-black font-mono">
+                                <span className="text-slate-600 font-bold uppercase">Total</span>
+                                <span className="text-amber-800 text-lg font-black font-mono">
                                   R$ {currentPricing.finalPrice.toFixed(2)}
                                 </span>
                               </div>
                               {currentPricing.discountPercent > 0 && (
-                                <div className="flex justify-between items-center text-[11px] font-bold text-red-400 border-t border-slate-800 pt-1">
+                                <div className="flex justify-between items-center text-[11px] font-bold text-red-600 border-t border-amber-100 pt-1">
                                   <span>Desconto ({currentPricing.discountPercent}%):</span>
                                   <span>- R$ {(currentPricing.originalPrice - currentPricing.finalPrice).toFixed(2)}</span>
                                 </div>
@@ -871,7 +861,7 @@ export default function Home() {
                               type="button"
                               onClick={handleBuyPixTickets}
                               disabled={isPurchasingPix || !currentCount}
-                              className="w-full bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400 hover:from-yellow-500 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-yellow-400/10 hover:shadow-yellow-400/20 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                              className="w-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-500 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
                             >
                               {isPurchasingPix ? (
                                 <>
@@ -885,10 +875,6 @@ export default function Home() {
                                 </>
                               )}
                             </button>
-
-                            <p className="text-[10px] text-center text-slate-500">
-                              * O valor será debitado do seu saldo.
-                            </p>
                           </>
                         );
                       })()}
@@ -902,25 +888,25 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-r from-slate-950 via-indigo-955 to-slate-950 text-white rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden border border-indigo-500/30">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.12),transparent_50%)] pointer-events-none"></div>
+        <div className="bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white text-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-md relative overflow-hidden border-2 border-amber-300">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full blur-[70px] pointer-events-none"></div>
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
             <div>
-              <h2 className="text-xl sm:text-2xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-400 flex items-center gap-2.5">
-                <Sparkles className="w-6 h-6 text-yellow-400 animate-spin shrink-0 animate-pulse" />
+              <h2 className="text-xl sm:text-2xl font-display font-black text-amber-900 flex items-center gap-2.5">
+                <Sparkles className="w-6 h-6 text-amber-500 animate-spin shrink-0 animate-pulse" />
                 <span>PIX PREMIADO</span>
-                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm shrink-0">Breve</span>
+                <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0">Breve</span>
               </h2>
-              <p className="text-slate-300 text-xs sm:text-sm mt-1 font-medium leading-relaxed">
-                Prepare-se para o PIX PREMIADO! Compre bilhetes e concorra a prêmios incríveis baseados nas extrações oficiais. Fique atento ao lançamento de novos sorteios!
+              <p className="text-slate-600 text-xs sm:text-sm mt-1 font-medium leading-relaxed">
+                Prepare-se para o PIX PREMIADO! Fique atento ao lançamento de novos sorteios!
               </p>
             </div>
             <Link
               to="/panel"
-              className="bg-indigo-650/30 hover:bg-indigo-650/50 text-indigo-200 font-bold text-xs px-5 py-2.5 rounded-xl border border-indigo-500/30 transition-all flex items-center gap-1.5 self-start sm:self-center whitespace-nowrap"
+              className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-5 py-2.5 rounded-xl border border-amber-300 transition-all flex items-center gap-1.5 self-start sm:self-center whitespace-nowrap"
             >
-              <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+              <Trophy className="w-3.5 h-3.5 text-amber-600" />
               <span>Meus Bilhetes</span>
             </Link>
           </div>
@@ -967,41 +953,40 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4 relative z-10">
+            <div className="relative z-10">
               {(() => {
-                const groupedByDate = userRaffleGames.reduce<Record<string, PixPremiadoGame[]>>((acc, game) => {
-                  let dateStr = 'Data não registrada';
-                  if (game.createdAt) {
-                    const d = game.createdAt.toDate ? game.createdAt.toDate() : new Date(game.createdAt);
-                    if (!isNaN(d.getTime())) {
-                      dateStr = d.toLocaleDateString('pt-BR');
-                    }
-                  }
-                  if (!acc[dateStr]) acc[dateStr] = [];
-                  acc[dateStr].push(game);
-                  return acc;
-                }, {});
+                const allPurchasedItems = userRaffleGames.flatMap((g) =>
+                  g.numbers.map((num) => ({
+                    gameId: g.id,
+                    numVal: num,
+                    numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
+                    isFourDigit: g.numbers.length === 1,
+                    dateStr: g.createdAt
+                      ? (g.createdAt.toDate ? g.createdAt.toDate() : new Date(g.createdAt)).toLocaleDateString('pt-BR')
+                      : ''
+                  }))
+                );
 
-                return (Object.entries(groupedByDate) as [string, PixPremiadoGame[]][]).map(([dateStr, gamesList]) => (
-                  <div key={dateStr} className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-5 shadow-lg space-y-3">
+                // Sort numbers in ascending order regardless of purchase date
+                allPurchasedItems.sort((a, b) => a.numVal - b.numVal);
+
+                return (
+                  <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-5 shadow-lg space-y-3">
                     <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
                       <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
-                        <Calendar className="w-4 h-4 text-yellow-400 shrink-0" />
-                        <span>Data da Compra: <strong className="text-white font-mono text-sm">{dateStr}</strong></span>
+                        <Ticket className="w-4 h-4 text-yellow-400 shrink-0" />
+                        <span>Seus Números Adquiridos (Ordem Crescente)</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-300 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
-                        {gamesList.length} {gamesList.length === 1 ? 'bilhete' : 'bilhetes'}
+                        Total: <strong className="text-yellow-400 font-mono">{allPurchasedItems.length}</strong> {allPurchasedItems.length === 1 ? 'número' : 'números'}
                       </span>
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {gamesList.flatMap((g) => g.numbers.map((num) => ({
-                        gameId: g.id,
-                        numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
-                        isFourDigit: g.numbers.length === 1
-                      }))).map((item, idx) => (
+                      {allPurchasedItems.map((item, idx) => (
                         <span
                           key={`${item.gameId}-${idx}`}
+                          title={item.dateStr ? `Comprado em ${item.dateStr}` : undefined}
                           className={`font-mono font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center border transition-transform hover:scale-105 ${
                             item.isFourDigit 
                               ? 'px-3.5 py-1.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-sm border-amber-300'
@@ -1013,7 +998,7 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
-                ));
+                );
               })()}
             </div>
           )}
