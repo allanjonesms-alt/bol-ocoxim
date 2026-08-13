@@ -1,10 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { BookOpen, Trophy, Clock, Coins, ShieldCheck, AlertCircle } from 'lucide-react';
+import { BookOpen, Trophy, ShieldCheck, AlertCircle, Sparkles, Ticket, Percent, Coins, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import googleScoreboardImg from '../assets/images/google_scoreboard_1783945113545.jpg';
 
-// Teste de alteração para verificação de sincronização e commit no GitHub
 export default function Regulations() {
   const containerVariants = {
     hidden: { opacity: 0, y: 15 },
@@ -33,20 +31,23 @@ export default function Regulations() {
       {/* Hero Banner */}
       <motion.div 
         variants={itemVariants}
-        className="relative bg-gradient-to-r from-emerald-800 to-emerald-950 p-8 sm:p-10 rounded-3xl shadow-lg border border-yellow-400/20 overflow-hidden text-left"
+        className="relative bg-gradient-to-br from-amber-600 via-amber-700 to-yellow-800 p-8 sm:p-10 rounded-3xl shadow-lg border border-yellow-300/30 overflow-hidden text-left"
       >
-        <div className="absolute top-0 right-0 w-80 h-80 bg-yellow-400/10 rounded-full blur-[90px] pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-80 h-80 bg-yellow-300/20 rounded-full blur-[90px] pointer-events-none"></div>
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="bg-yellow-400/20 text-yellow-350 border border-yellow-400/30 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">Informativo Geral</span>
+              <span className="bg-yellow-400/25 text-yellow-200 border border-yellow-300/40 text-xs px-3.5 py-1 rounded-full font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                Regulamento Oficial
+              </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold text-white tracking-tight flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight flex items-center gap-3">
               <BookOpen className="h-8 w-8 text-yellow-300 shrink-0" />
-              Regulamento do Bolão
+              PIX PREMIADO
             </h1>
-            <p className="text-emerald-100/80 text-sm sm:text-base font-medium max-w-2xl">
-              Entenda como funciona o PIXCOXIM: divisão de prêmios, prazos inegociáveis, acúmulos para a Seleção Brasileira e regras de homologação.
+            <p className="text-amber-100 text-sm sm:text-base font-medium max-w-2xl leading-relaxed">
+              Confira as regras oficiais, opções de pacotes de bilhetes com descontos progressivos, prazos e a forma dos sorteios baseados em extrações oficiais.
             </p>
           </div>
         </div>
@@ -55,195 +56,193 @@ export default function Regulations() {
       {/* Rules Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
         
-        {/* Rule 1: Divisão de prêmios */}
+        {/* Rule 1: O que é o PIX PREMIADO */}
         <motion.div 
           variants={itemVariants}
-          className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-emerald-500/50 transition-all duration-300 relative group flex flex-col justify-between"
+          className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-amber-200 hover:border-amber-400 transition-all duration-300 relative group flex flex-col justify-between"
         >
           <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-300 shadow-xs">
+              <Ticket className="h-6 w-6" />
+            </div>
+            <h2 className="text-lg font-display font-bold text-slate-900 uppercase tracking-wider">1. O que é o PIX PREMIADO</h2>
+            <div className="text-slate-600 text-sm leading-relaxed space-y-3">
+              <p>
+                O <strong>PIX PREMIADO</strong> é uma modalidade de sorteios promocionais rápidos, 100% transparentes e auditáveis promovidos pelo PIXCOXIM.
+              </p>
+              <p className="border-l-4 border-amber-500 pl-3 py-1 bg-amber-50/60 rounded-r-lg font-medium text-amber-900">
+                Cada participante adquire a quantidade desejada de bilhetes e concorre diretamente a prêmios em dinheiro creditados na sua conta.
+              </p>
+              <p>
+                Todos os números gerados para cada compra ficam salvos na sua conta e são exibidos de forma clara e organizada na página inicial e no painel do usuário.
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
+            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Transparência Total</span>
+            <span className="text-xs font-bold text-amber-600 font-mono">100% Auditável</span>
+          </div>
+        </motion.div>
+
+        {/* Rule 2: Formas de Compra & Descontos Progressivos */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-amber-200 hover:border-amber-400 transition-all duration-300 relative group flex flex-col justify-between"
+        >
+          <div className="space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-xs">
+              <Percent className="h-6 w-6" />
+            </div>
+            <h2 className="text-lg font-display font-bold text-slate-900 uppercase tracking-wider">2. Formas de Compra e Pacotes</h2>
+            <div className="text-slate-600 text-sm leading-relaxed space-y-3">
+              <p>
+                Você pode escolher comprar bilhetes individuais ou optar por pacotes promocionais com <strong>descontos progressivos automáticos de até 30% OFF</strong>:
+              </p>
+              <ul className="space-y-1.5 text-xs text-slate-700 font-semibold bg-slate-50 p-3 rounded-xl border border-slate-150">
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Pacotes pré-definidos (1, 5, 10, 20 ou 50 bilhetes).</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Campo de quantidade personalizada para o número exato de bilhetes que desejar.</li>
+              </ul>
+              <p className="text-xs text-slate-500">
+                O valor total correspondente é calculado no momento da escolha e debitado instantaneamente do seu saldo disponível na plataforma.
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
+            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Economia Garantida</span>
+            <span className="text-xs font-bold text-emerald-600">Até 30% OFF</span>
+          </div>
+        </motion.div>
+
+        {/* Rule 3: Forma do Sorteio e Apuração pela Loteria Federal */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-amber-200 hover:border-amber-400 transition-all duration-300 relative group flex flex-col justify-between md:col-span-2"
+        >
+          <div className="space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-xs">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <h2 className="text-lg font-display font-bold text-slate-900 uppercase tracking-wider">3. Forma do Sorteio e Apuração (Loteria Federal)</h2>
+            <div className="text-slate-600 text-sm leading-relaxed space-y-4">
+              <p>
+                Os sorteios do <strong>PIX PREMIADO</strong> são baseados rigorosamente nas extrações oficiais da <strong>Loteria Federal</strong> (Caixa Econômica Federal), garantindo total transparência e lisura no resultado.
+              </p>
+
+              {/* Step-by-step extraction rules */}
+              <div className="bg-amber-50/70 border border-amber-200 p-4 sm:p-5 rounded-2xl space-y-3.5">
+                <h3 className="font-bold text-slate-900 text-xs sm:text-sm uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  Regras de Apuração Passo a Passo:
+                </h3>
+
+                <ol className="space-y-3 text-xs sm:text-sm text-slate-700">
+                  <li className="flex items-start gap-2.5">
+                    <span className="bg-amber-500 text-white font-black text-xs min-w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0 mt-0.5">1</span>
+                    <div>
+                      <strong>Milhar do 1º Prêmio:</strong> O bilhete contemplado será inicialmente a milhar (últimos 4 dígitos) do 1º Prêmio da Loteria Federal.
+                      <div className="mt-1 bg-white p-2.5 rounded-xl border border-amber-200 font-mono text-xs text-slate-800">
+                        💡 <strong>Exemplo:</strong> Se o 1º PRÊMIO for <span className="font-bold text-amber-700">52345</span>, o bilhete vencedor é o <span className="font-bold text-emerald-700">2.345</span>.
+                      </div>
+                    </div>
+                  </li>
+
+                  <li className="flex items-start gap-2.5">
+                    <span className="bg-amber-500 text-white font-black text-xs min-w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0 mt-0.5">2</span>
+                    <div>
+                      <strong>Busca do 2º ao 5º Prêmio:</strong> Caso o bilhete da milhar do 1º prêmio não tenha sido vendido, a apuração seguirá sequencialmente verificando a milhar do <strong>2º prêmio</strong>, depois do <strong>3º prêmio</strong>, <strong>4º prêmio</strong> até o <strong>5º prêmio</strong>.
+                    </div>
+                  </li>
+
+                  <li className="flex items-start gap-2.5">
+                    <span className="bg-amber-500 text-white font-black text-xs min-w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0 mt-0.5">3</span>
+                    <div>
+                      <strong>Próxima Combinação da Milhar (1º ao 5º Prêmio):</strong> Se ainda assim não houver bilhete vendido entre o 1º e 5º prêmio, será considerada a combinação dos 4 primeiros dígitos (a partir do início da milhar do 1º prêmio) e assim por diante até o 5º prêmio.
+                      <div className="mt-1 bg-white p-2.5 rounded-xl border border-amber-200 font-mono text-xs text-slate-800">
+                        💡 <strong>Exemplo:</strong> Se o 1º PRÊMIO for <span className="font-bold text-amber-700">52345</span>, a próxima milhar testada é <span className="font-bold text-emerald-700">5.234</span> (e assim sucessivamente até o 5º prêmio).
+                      </div>
+                    </div>
+                  </li>
+
+                  <li className="flex items-start gap-2.5">
+                    <span className="bg-amber-500 text-white font-black text-xs min-w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0 mt-0.5">4</span>
+                    <div>
+                      <strong>Aproximação Numérica (Mais Próximo):</strong> Caso persistir sem um ganhador exato, voltaremos ao número inicial (ex: <span className="font-bold font-mono">2.345</span>) e o prêmio será concedido ao <strong>bilhete vendido mais próximo</strong>, seja para mais ou para menos.
+                    </div>
+                  </li>
+
+                  <li className="flex items-start gap-2.5">
+                    <span className="bg-amber-500 text-white font-black text-xs min-w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0 mt-0.5">5</span>
+                    <div>
+                      <strong>Critério de Desempate por Horário:</strong> Em caso de empate exato na distância (ex: a mesma diferença para mais e para menos), o critério de desempate será a <strong>data e horário de compra</strong>, sagrando-se vencedor o bilhete que foi <strong>comprado primeiro</strong>.
+                    </div>
+                  </li>
+                </ol>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                Os bilhetes do apostador são sempre ordenados em ordem crescente no seu painel para facilitar a conferência imediata com a extração oficial.
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
+            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Extração Oficial Caixa</span>
+            <span className="text-xs font-bold text-indigo-700 font-mono">Milhar + Regra do Mais Próximo</span>
+          </div>
+        </motion.div>
+
+        {/* Rule 4: Premiação e Pagamento */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-amber-200 hover:border-amber-400 transition-all duration-300 relative group flex flex-col justify-between"
+        >
+          <div className="space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-300 shadow-xs">
               <Coins className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-display font-bold text-slate-800 uppercase tracking-wider">Divisão de Valores</h2>
+            <h2 className="text-lg font-display font-bold text-slate-900 uppercase tracking-wider">4. Premiação e Recebimento</h2>
             <div className="text-slate-600 text-sm leading-relaxed space-y-3">
               <p>
-                Cada palpite registrado e homologado no bolão possui o valor fixo de <strong>R$ 5,00</strong> por aposta.
+                O valor do prêmio de cada edição é divulgado publicamente na área do sorteio antes do encerramento das compras.
               </p>
               <p>
-                <strong>90% de todo o valor arrecadado</strong> em cada confronto é destinado exclusivamente para a premiação líquida aos acertadores daquele jogo específico.
+                Assim que a extração oficial é homologada pela administração, o valor do prêmio é <strong>creditado no saldo do ganhador</strong> ou transferido via chave PIX para o titular da conta.
               </p>
               <p>
-                A premiação correspondente é dividida em partes <strong>rigorosamente iguais</strong> entre todas as apostas com o palpite exato do placar final (Ganhadores).
+                Não há cobrança de taxas de saque para o resgate do prêmio obtido no PIX PREMIADO.
               </p>
             </div>
           </div>
           <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">90% para o Prêmio</span>
-            <span className="text-xs font-bold text-emerald-600 font-mono">10% de Taxa Administrativa</span>
+            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Pagamento Rápido</span>
+            <span className="text-xs font-bold text-amber-600">Via PIX Sem Taxas</span>
           </div>
         </motion.div>
 
-        {/* Rule 2: Regra de Acúmulo */}
+        {/* Rule 5: Saldo & Regras de Segurança */}
         <motion.div 
           variants={itemVariants}
-          className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-emerald-500/50 transition-all duration-300 relative group flex flex-col justify-between"
+          className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-amber-200 hover:border-amber-400 transition-all duration-300 relative group flex flex-col justify-between md:col-span-2"
         >
           <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-300 shadow-xs">
-              <Trophy className="h-6 w-6" />
-            </div>
-            <h2 className="text-lg font-display font-bold text-slate-800 uppercase tracking-wider">Acúmulo de Prêmios</h2>
-            <div className="text-slate-600 text-sm leading-relaxed space-y-3">
-              <p>
-                Se <strong>não houver nenhum acertador</strong> do placar exato de um jogo, o prêmio não é estornado nem faturado para a administração!
-              </p>
-              <p className="border-l-4 border-yellow-400 pl-3 py-1 bg-yellow-50/50 rounded-r-lg">
-                Todo o valor destinado ao prêmio da partida é <strong>totalmente acumulado</strong> para a próxima partida da <strong>Seleção Brasileira</strong>.
-              </p>
-              <p>
-                Excepcionalmente, caso não haja mais nenhuma partida programada da nossa seleção no calendário letivo do bolão, o montante total arrecadado acumulará diretamente para a premiação final da <strong>Classificação Geral</strong>.
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Garantia de Ganho</span>
-            <span className="text-xs font-bold text-amber-700">Acúmulo Inteligente</span>
-          </div>
-        </motion.div>
-
-        {/* Rule 3: Prazo das Apostas */}
-        <motion.div 
-          variants={itemVariants}
-          className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-emerald-500/50 transition-all duration-300 relative group flex flex-col justify-between"
-        >
-          <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-xs">
-              <Clock className="h-6 w-6" />
-            </div>
-            <h2 className="text-lg font-display font-bold text-slate-800 uppercase tracking-wider">Validade e Prazos</h2>
-            <div className="text-slate-600 text-sm leading-relaxed space-y-3">
-              <p>
-                A pontualidade é mandatória para garantir a lisura, auditoria e equilíbrio do nosso PIXCOXIM.
-              </p>
-              <p className="border-l-4 border-blue-500 pl-3 py-1 bg-blue-50/50 rounded-r-lg">
-                As apostas e palpites só serão considerados válidos se forem completamente <strong>confirmados até 30 minutos antes do início oficial</strong> de cada jogo.
-              </p>
-              <p>
-                O sistema implementa barreiras digitais auto-executáveis de tempo: após o prazo (-30 min), novos palpites e pagamentos para a devida partida serão desativados.
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Prazos de Jogo</span>
-            <span className="text-xs font-bold text-blue-700">Bloqueio Automático (-30 min)</span>
-          </div>
-        </motion.div>
-
-        {/* Rule 4: Homologação e Saldo */}
-        <motion.div 
-          variants={itemVariants}
-          className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-emerald-500/50 transition-all duration-300 relative group flex flex-col justify-between"
-        >
-          <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-slate-800 group-hover:text-white transition-all duration-300 shadow-xs">
               <ShieldCheck className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-display font-bold text-slate-800 uppercase tracking-wider">Aprovação e Saldo</h2>
+            <h2 className="text-lg font-display font-bold text-slate-900 uppercase tracking-wider">5. Saldo e Recargas de Carteira</h2>
             <div className="text-slate-600 text-sm leading-relaxed space-y-3">
               <p>
-                Quando você salva uma aposta, se houver saldo válido (R$ 5,00 ou R$ 2,00 dependendo do tipo da aposta), ela é <strong>aprovada automaticamente pelo sistema</strong>.
+                Para efetuar a compra de bilhetes, certifique-se de possuir saldo suficiente na sua conta PIXCOXIM. Caso necessite adicionar fundos, acesse o painel do usuário e realize um depósito via PIX.
               </p>
-              <p>
-                Apostas para as quais não haja saldo regular suficiente entrarão no sistema sob o rótulo de <strong>Aposta Pendente</strong>.
-              </p>
-              <p>
-                Certifique-se de preencher seus fundos de forma adequada na área do jogador realizando um Pix e solicitando a aprovação do depósito ao suporte administrador.
+              <p className="text-xs text-slate-500">
+                Recomendamos efetuar o carregamento de saldo com antecedência para garantir a participação nas edições desejadas antes do limite de encerramento do sorteio.
               </p>
             </div>
           </div>
           <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Auditoria Clara</span>
-            <span className="text-xs font-bold text-indigo-700">Garantia Antifraude</span>
+            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Segurança do Apostador</span>
+            <span className="text-xs font-bold text-slate-700">Depósitos PIX 24/7</span>
           </div>
         </motion.div>
 
-        {/* Rule 5: Jogos Promocionais */}
-        <motion.div 
-          variants={itemVariants}
-          className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-indigo-200 hover:border-indigo-500/50 transition-all duration-300 relative group flex flex-col justify-between md:col-span-2"
-        >
-          <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-xs">
-              <Trophy className="h-6 w-6" />
-            </div>
-            <h2 className="text-lg font-display font-bold text-indigo-800 uppercase tracking-wider">Jogos Promocionais</h2>
-            <div className="text-slate-600 text-sm leading-relaxed space-y-3">
-              <p>
-                Os Jogos Promocionais são uma modalidade especial que <strong>não distribui prêmios em dinheiro</strong>, mas serve exclusivamente para somar pontos na <strong>Classificação Geral</strong>.
-              </p>
-              <p className="border-l-4 border-indigo-500 pl-3 py-1 bg-indigo-50/50 rounded-r-lg">
-                O custo para registrar um palpite nesta modalidade é de apenas <strong>R$ 2,00</strong>.
-              </p>
-              <p>
-                Cada usuário tem um limite máximo de <strong>2 apostas</strong> por partida em jogos promocionais. Metade dos valores arrecadados nessas partidas são adicionados ao caixa para a grande premiação da Classificação Geral!
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Pontuação na Liga</span>
-            <span className="text-xs font-bold text-indigo-700">R$ 2,00 por Palpite</span>
-          </div>
-        </motion.div>
-
-        {/* Rule 6: Sistema de Pontuação */}
-        <motion.div 
-          variants={itemVariants}
-          className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-fuchsia-500/50 transition-all duration-300 relative group flex flex-col justify-between md:col-span-2"
-        >
-          <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-fuchsia-50 border border-fuchsia-100 flex items-center justify-center text-fuchsia-600 group-hover:bg-fuchsia-600 group-hover:text-white transition-all duration-300 shadow-xs">
-              <Trophy className="h-6 w-6" />
-            </div>
-            <h2 className="text-lg font-display font-bold text-slate-800 uppercase tracking-wider">Sistema de Pontuação</h2>
-            <div className="text-slate-600 text-sm leading-relaxed space-y-3">
-              <p>
-                A pontuação para a classificação geral recompensa acertos parciais. Você soma pontos ao acertar o vencedor (ou se foi empate) e ao acertar a quantidade exata de gols de cada equipe.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="border border-emerald-100 bg-emerald-50/50 rounded-2xl p-4">
-                  <h3 className="font-bold text-emerald-800 mb-3">Jogos Principais (R$ 5,00)</h3>
-                  <ul className="space-y-2">
-                    <li className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-emerald-100/50 shadow-sm"><span className="text-xs font-semibold">Acertar o Vencedor (ou Empate)</span> <span className="font-bold text-emerald-700 bg-emerald-100 px-2 rounded">+6 pts</span></li>
-                    <li className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-emerald-100/50 shadow-sm"><span className="text-xs font-semibold">Acertar Gols da Equipe Mandante</span> <span className="font-bold text-emerald-700 bg-emerald-100 px-2 rounded">+12 pts</span></li>
-                    <li className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-emerald-100/50 shadow-sm"><span className="text-xs font-semibold">Acertar Gols da Equipe Visitante</span> <span className="font-bold text-emerald-700 bg-emerald-100 px-2 rounded">+12 pts</span></li>
-                  </ul>
-                  <div className="mt-4 text-xs text-center font-bold text-emerald-900 bg-emerald-200 py-2 rounded-xl">Acerto do Placar Exato: 30 pontos no total</div>
-                </div>
-
-                <div className="border border-indigo-100 bg-indigo-50/50 rounded-2xl p-4">
-                  <h3 className="font-bold text-indigo-800 mb-3">Jogos Promocionais (R$ 2,00)</h3>
-                  <ul className="space-y-2">
-                    <li className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-indigo-100/50 shadow-sm"><span className="text-xs font-semibold">Acertar o Vencedor (ou Empate)</span> <span className="font-bold text-indigo-700 bg-indigo-100 px-2 rounded">+2 pts</span></li>
-                    <li className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-indigo-100/50 shadow-sm"><span className="text-xs font-semibold">Acertar Gols da Equipe Mandante</span> <span className="font-bold text-indigo-700 bg-indigo-100 px-2 rounded">+4 pts</span></li>
-                    <li className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-indigo-100/50 shadow-sm"><span className="text-xs font-semibold">Acertar Gols da Equipe Visitante</span> <span className="font-bold text-indigo-700 bg-indigo-100 px-2 rounded">+4 pts</span></li>
-                  </ul>
-                  <div className="mt-4 text-xs text-center font-bold text-indigo-900 bg-indigo-200 py-2 rounded-xl">Acerto do Placar Exato: 10 pontos no total</div>
-                </div>
-              </div>
-
-              <div className="mt-4 border-l-4 border-fuchsia-500 pl-3 py-2 bg-fuchsia-50/50 rounded-r-lg">
-                <p className="text-sm text-fuchsia-900 leading-relaxed font-medium">
-                  <strong>⚠️ Pontuação em Dobro:</strong> Daqui até o final do campeonato, as pontuações de todos os jogos são <strong>DOBRADAS</strong>! Os valores acima já refletem essa pontuação updated. O custo do jogo promocional está fixado em <strong>R$ 2,00</strong>.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 mt-6 pt-4 flex items-center justify-between">
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400">Classificação Geral</span>
-            <span className="text-xs font-bold text-fuchsia-700">Soma Automática</span>
-          </div>
-        </motion.div>
       </div>
 
       {/* Info Warning Card */}
@@ -253,9 +252,9 @@ export default function Regulations() {
       >
         <AlertCircle className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Atenção Especial: Carregamento de Recursos</h3>
+          <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Lembrete Importante</h3>
           <p className="text-slate-600 text-sm leading-relaxed">
-            Recomendamos enfaticamente carregar suas recargas com antecedência para evitar contratempos. Caso uma aposta permaneça registrada como <strong>Pendente</strong> pela falta de crédito após o limite de 30 minutos antes do início do jogo, ela não receberá homologação administrativa e será formalmente invalidada.
+            Certifique-se sempre de conferir seus bilhetes na página inicial ou em <strong>"Meus Bilhetes"</strong> no seu painel. Em caso de dúvidas sobre a apuração dos números ou recargas de saldo, entre em contato com nosso suporte oficial.
           </p>
         </div>
       </motion.div>
@@ -263,18 +262,19 @@ export default function Regulations() {
       {/* Play/Profile prompt */}
       <motion.div 
         variants={itemVariants}
-        className="flex flex-col sm:flex-row shadow-xs p-5 bg-slate-100 border border-slate-200 rounded-3xl justify-center items-center gap-4 text-center"
+        className="flex flex-col sm:flex-row shadow-xs p-5 bg-amber-50/60 border border-amber-200 rounded-3xl justify-center items-center gap-4 text-center"
       >
-        <p className="text-sm font-semibold text-slate-600">Entendeu as regras e quer apostar?</p>
+        <p className="text-sm font-semibold text-slate-700">Entendeu as regras e quer comprar seus bilhetes?</p>
         <div className="flex gap-4">
-          <Link to="/" className="text-xs font-bold uppercase tracking-wider bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-3 rounded-xl shadow-xs transition-all cursor-pointer">
-            Ver Próximos Jogos
+          <Link to="/" className="text-xs font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white px-5 py-3 rounded-xl shadow-xs transition-all cursor-pointer">
+            Ver PIX PREMIADO Ativo
           </Link>
-          <Link to="/panel" className="text-xs font-bold uppercase tracking-wider bg-white hover:bg-slate-50 border border-slate-250 text-slate-700 px-5 py-3 rounded-xl transition-all cursor-pointer">
-            Minhas Carteira e Apostas
+          <Link to="/panel" className="text-xs font-bold uppercase tracking-wider bg-white hover:bg-slate-50 border border-amber-300 text-slate-800 px-5 py-3 rounded-xl transition-all cursor-pointer">
+            Meus Bilhetes e Saldo
           </Link>
         </div>
       </motion.div>
     </motion.div>
   );
 }
+

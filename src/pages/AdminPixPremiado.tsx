@@ -96,7 +96,23 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
     quadra: PixPremiadoGame[];
     terno: PixPremiadoGame[];
     hasChecked: boolean;
+    isFederal?: boolean;
+    federalReason?: string;
+    targetMilhar?: string;
+    winningTicketStr?: string;
   }>({ sena: [], quina: [], quadra: [], terno: [], hasChecked: false });
+
+  // Helper to extract timestamp for tie-breaker
+  const getGameTimestamp = (g: PixPremiadoGame): number => {
+    if (!g.createdAt) return 0;
+    if (typeof g.createdAt === 'object' && 'seconds' in g.createdAt) {
+      return g.createdAt.seconds * 1000 + (g.createdAt.nanoseconds || 0) / 1000000;
+    }
+    if (typeof g.createdAt?.toDate === 'function') {
+      return g.createdAt.toDate().getTime();
+    }
+    return new Date(g.createdAt).getTime() || 0;
+  };
 
   
   // Draws State
@@ -817,38 +833,122 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
     const isFederal = activeDraw && activeDraw.type === 'Loteria Federal';
 
     if (isFederal) {
-      const firstNum = parseInt(drawnNumbers[0], 10);
-      if (isNaN(firstNum) || firstNum < 1 || firstNum > 9999) {
-        showToast('Por favor, informe um número válido da Loteria Federal entre 0001 e 9999.', 'error');
+      const p1 = (drawnNumbers[0] || '').trim();
+      const p2 = (drawnNumbers[1] || '').trim();
+      const p3 = (drawnNumbers[2] || '').trim();
+      const p4 = (drawnNumbers[3] || '').trim();
+      const p5 = (drawnNumbers[4] || '').trim();
+
+      const prizesRaw = [p1, p2, p3, p4, p5];
+
+      if (prizesRaw.some(p => !p || p.length < 1 || isNaN(Number(p)))) {
+        showToast('Por favor, preencha os 5 prêmios da Loteria Federal (números de até 5 dígitos cada).', 'error');
         return;
       }
 
-      const sena: PixPremiadoGame[] = [];
-      games.forEach(g => {
-        if (Array.isArray(g.numbers) && g.numbers[0] === firstNum) {
-          sena.push(g);
+      // Format all 5 prizes as 5-digit strings padded with leading zeros
+      const prizes = prizesRaw.map(p => p.padStart(5, '0'));
+
+      let winners: PixPremiadoGame[] = [];
+      let reason = '';
+      let targetMilhar = '';
+      let winningTicketStr = '';
+
+      // STEP 1: Check milhar (last 4 digits) from 1st to 5th prize
+      for (let i = 0; i < 5; i++) {
+        const milharStr = prizes[i].slice(1); // last 4 digits
+        const milharNum = parseInt(milharStr, 10);
+        const matches = federalGames.filter(g => Array.isArray(g.numbers) && g.numbers[0] === milharNum);
+
+        if (matches.length > 0) {
+          winners = matches;
+          reason = `Ganhador encontrado no ${i + 1}º PRÊMIO da Loteria Federal (Milhar: ${milharStr})!`;
+          targetMilhar = milharStr;
+          winningTicketStr = milharStr;
+          break;
         }
-      });
+      }
+
+      // STEP 2: Check frontal milhar (first 4 digits) from 1st to 5th prize
+      if (winners.length === 0) {
+        for (let i = 0; i < 5; i++) {
+          const milharStr = prizes[i].slice(0, 4); // first 4 digits
+          const milharNum = parseInt(milharStr, 10);
+          const matches = federalGames.filter(g => Array.isArray(g.numbers) && g.numbers[0] === milharNum);
+
+          if (matches.length > 0) {
+            winners = matches;
+            reason = `Ganhador encontrado pela Milhar Frontal do ${i + 1}º PRÊMIO da Loteria Federal (${milharStr})!`;
+            targetMilhar = milharStr;
+            winningTicketStr = milharStr;
+            break;
+          }
+        }
+      }
+
+      // STEP 3: Closest number to 1st Prize Milhar + Tie breaker by earliest purchase time
+      if (winners.length === 0) {
+        const initialTargetStr = prizes[0].slice(1); // last 4 digits of 1st Prize
+        const initialTargetNum = parseInt(initialTargetStr, 10);
+        targetMilhar = initialTargetStr;
+
+        if (federalGames.length === 0) {
+          reason = `Nenhum bilhete da Loteria Federal foi vendido para este sorteio. (Alvo 1º Prêmio: ${initialTargetStr}).`;
+        } else {
+          // Find minimum difference
+          let minDiff = Infinity;
+          federalGames.forEach(g => {
+            if (Array.isArray(g.numbers)) {
+              const diff = Math.abs(g.numbers[0] - initialTargetNum);
+              if (diff < minDiff) {
+                minDiff = diff;
+              }
+            }
+          });
+
+          // Candidates with minDiff
+          const candidates = federalGames.filter(g => Array.isArray(g.numbers) && Math.abs(g.numbers[0] - initialTargetNum) === minDiff);
+
+          if (candidates.length === 1) {
+            winners = [candidates[0]];
+            winningTicketStr = String(candidates[0].numbers[0]).padStart(4, '0');
+            reason = `Ganhador encontrado por APROXIMAÇÃO NUMÉRICA! (Alvo 1º Prêmio: ${initialTargetStr}, Bilhete Vencedor: ${winningTicketStr}, Distância: ${minDiff}).`;
+          } else if (candidates.length > 1) {
+            // Sort by earliest purchase time
+            const sorted = [...candidates].sort((a, b) => getGameTimestamp(a) - getGameTimestamp(b));
+            winners = [sorted[0]];
+            winningTicketStr = String(sorted[0].numbers[0]).padStart(4, '0');
+            reason = `Ganhador encontrado por APROXIMAÇÃO com DESEMPATE POR HORÁRIO DE COMPRA! (Alvo: ${initialTargetStr}, Bilhete Vencedor: ${winningTicketStr}, Distância: ${minDiff}, Comprado Primeiro).`;
+          }
+        }
+      }
 
       setDrawResults({
-        sena,
+        sena: winners,
         quina: [],
         quadra: [],
         terno: [],
-        hasChecked: true
+        hasChecked: true,
+        isFederal: true,
+        federalReason: reason,
+        targetMilhar,
+        winningTicketStr
       });
 
       if (activeDraw) {
         try {
           await setDoc(doc(db, 'pix_premiado_draws', activeDraw.id), {
-            drawnNumbers: [String(firstNum).padStart(4, '0')]
+            drawnNumbers: prizes,
+            winningReason: reason,
+            winnerName: winners.length > 0 ? winners[0].userName : 'Sem Ganhador',
+            winningTicket: winningTicketStr || null
           }, { merge: true });
           showToast('Apuração da Loteria Federal concluída e resultado salvo!', 'success');
         } catch (err) {
           showToast('Apuração concluída, mas erro ao salvar resultado no banco.', 'warning');
         }
       } else {
-        showToast('Apuração concluída!', 'success');
+        showToast('Apuração da Loteria Federal concluída!', 'success');
       }
       return;
     }
@@ -892,7 +992,8 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
       quina,
       quadra,
       terno,
-      hasChecked: true
+      hasChecked: true,
+      isFederal: false
     });
     
     if (activeDraw) {
@@ -915,10 +1016,13 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
     const isFederal = activeDraw && activeDraw.type === 'Loteria Federal';
 
     if (isFederal) {
-      const randomNum = Math.floor(Math.random() * 9999) + 1;
-      const formatted = String(randomNum).padStart(4, '0');
-      setDrawnNumbers([formatted, '', '', '', '', '']);
-      showToast(`Número da Loteria Federal gerado: ${formatted}`, 'success');
+      const p1 = String(Math.floor(10000 + Math.random() * 90000));
+      const p2 = String(Math.floor(10000 + Math.random() * 90000));
+      const p3 = String(Math.floor(10000 + Math.random() * 90000));
+      const p4 = String(Math.floor(10000 + Math.random() * 90000));
+      const p5 = String(Math.floor(10000 + Math.random() * 90000));
+      setDrawnNumbers([p1, p2, p3, p4, p5, '']);
+      showToast('Prêmios da Loteria Federal gerados aleatoriamente!', 'success');
     } else {
       const drawn = gerarJogo();
       setDrawnNumbers(drawn.map(String));
@@ -1388,7 +1492,7 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                     {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' 
-                      ? 'Inserir Bilhete Contemplado (0001 a 9999)' 
+                      ? 'Resultado dos 5 Prêmios da Loteria Federal' 
                       : 'Inserir Números Sorteados'}
                   </label>
                   <button 
@@ -1396,26 +1500,49 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                     onClick={handleAutoDraw}
                     className="text-xs font-bold text-amber-600 hover:text-amber-800 flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    <Dices className="w-3.5 h-3.5" /> {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' ? 'Sortear Bilhete' : 'Sortear Dezenas'}
+                    <Dices className="w-3.5 h-3.5" /> {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' ? 'Sortear Prêmios (Teste)' : 'Sortear Dezenas'}
                   </button>
                 </div>
 
                 {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' ? (
-                  <div>
-                    <input 
-                      type="text"
-                      maxLength={4}
-                      value={drawnNumbers[0]}
-                      onChange={(e) => {
-                        const cleaned = e.target.value.replace(/[^0-9]/g, '');
-                        const copy = [...drawnNumbers];
-                        copy[0] = cleaned;
-                        setDrawnNumbers(copy);
-                      }}
-                      placeholder="Ex: 0523"
-                      className="w-full text-center py-3.5 bg-amber-50/50 border border-amber-200 rounded-xl font-mono font-black text-2xl focus:ring-2 focus:ring-amber-500/25 outline-none text-amber-900 tracking-widest placeholder:text-amber-300"
-                    />
-                    <p className="text-[11px] text-slate-400 mt-1.5 text-center font-medium">Informe o bilhete vencedor de 4 dígitos entre 0001 e 9999</p>
+                  <div className="space-y-2.5 bg-amber-50/30 p-3.5 rounded-2xl border border-amber-200/80">
+                    <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Informe o resultado de cada prêmio (5 dígitos):
+                    </p>
+                    {[
+                      { label: '1º PRÊMIO', index: 0, placeholder: 'Ex: 52345' },
+                      { label: '2º PRÊMIO', index: 1, placeholder: 'Ex: 18762' },
+                      { label: '3º PRÊMIO', index: 2, placeholder: 'Ex: 34981' },
+                      { label: '4º PRÊMIO', index: 3, placeholder: 'Ex: 09123' },
+                      { label: '5º PRÊMIO', index: 4, placeholder: 'Ex: 76540' },
+                    ].map((prizeItem) => (
+                      <div key={prizeItem.index} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-amber-200/80 shadow-xs">
+                        <span className="text-[11px] font-extrabold text-amber-900 w-20 shrink-0 uppercase font-mono">
+                          {prizeItem.label}
+                        </span>
+                        <input 
+                          type="text"
+                          maxLength={5}
+                          value={drawnNumbers[prizeItem.index] || ''}
+                          onChange={(e) => {
+                            const cleaned = e.target.value.replace(/[^0-9]/g, '');
+                            const copy = [...drawnNumbers];
+                            copy[prizeItem.index] = cleaned;
+                            setDrawnNumbers(copy);
+                          }}
+                          placeholder={prizeItem.placeholder}
+                          className="w-full text-center py-1.5 bg-amber-50/30 border border-amber-200 rounded-lg font-mono font-bold text-base focus:ring-2 focus:ring-amber-500/25 outline-none text-slate-900 tracking-widest placeholder:text-amber-300"
+                        />
+                        {drawnNumbers[prizeItem.index]?.length === 5 && (
+                          <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 shrink-0 font-mono">
+                            Milhar: {drawnNumbers[prizeItem.index].slice(1)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-slate-400 text-center font-medium pt-1">
+                      A apuração testará a milhar do 1º ao 5º prêmio, a milhar frontal, e o bilhete mais próximo (com desempate por horário).
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-6 gap-2">
@@ -1451,66 +1578,107 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                 <div className="mt-6 border-t border-slate-100 pt-6 space-y-4">
                   <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-2">Resultado da Apuração:</h4>
                   
-                  <div className="space-y-3">
-                    {/* Sena */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        <span className="text-xs font-extrabold text-amber-800">SENA (6 acertos)</span>
-                      </div>
-                      <span className="font-mono font-bold text-amber-900 text-sm">{drawResults.sena.length} bilhetes</span>
-                    </div>
-
-                    {/* Quina */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-50 border border-indigo-100">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-                        <span className="text-xs font-extrabold text-indigo-800">QUINA (5 acertos)</span>
-                      </div>
-                      <span className="font-mono font-bold text-indigo-900 text-sm">{drawResults.quina.length} bilhetes</span>
-                    </div>
-
-                    {/* Quadra */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                        <span className="text-xs font-extrabold text-emerald-800">QUADRA (4 acertos)</span>
-                      </div>
-                      <span className="font-mono font-bold text-emerald-900 text-sm">{drawResults.quadra.length} bilhetes</span>
-                    </div>
-
-                    {/* Terno */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
-                        <span className="text-xs font-extrabold text-slate-700">TERNO (3 acertos)</span>
-                      </div>
-                      <span className="font-mono font-bold text-slate-800 text-sm">{drawResults.terno.length} bilhetes</span>
-                    </div>
-                  </div>
-
-                  {/* Winner Lists details if any */}
-                  {[...drawResults.sena, ...drawResults.quina, ...drawResults.quadra].length > 0 ? (
-                    <div className="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-200 max-h-[180px] overflow-y-auto space-y-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Lista de Ganhadores:</p>
-                      {drawResults.sena.map(g => (
-                        <div key={g.id} className="text-xs text-amber-800 font-bold">
-                          ★ {g.userName} - SENA: [{g.numbers.join(', ')}]
+                  {drawResults.isFederal ? (
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="w-5 h-5 text-amber-600 shrink-0" />
+                          <span className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                            {drawResults.sena.length > 0 ? 'BILHETE CONTEMPLADO ENCONTRADO!' : 'APURAÇÃO CONCLUÍDA'}
+                          </span>
                         </div>
-                      ))}
-                      {drawResults.quina.map(g => (
-                        <div key={g.id} className="text-xs text-indigo-800 font-semibold">
-                          ✦ {g.userName} - QUINA: [{g.numbers.join(', ')}]
+                        <p className="text-xs font-semibold text-amber-900 leading-relaxed">
+                          {drawResults.federalReason}
+                        </p>
+                      </div>
+
+                      {drawResults.sena.length > 0 ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Apostador Vencedor:</p>
+                          {drawResults.sena.map(g => (
+                            <div key={g.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-emerald-200 shadow-xs">
+                              <div>
+                                <p className="text-xs font-bold text-slate-900">★ {g.userName}</p>
+                                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                  Bilhete do Ganhador: <strong className="font-mono text-emerald-700 text-sm font-black">Nº {String(g.numbers[0]).padStart(4, '0')}</strong>
+                                </p>
+                              </div>
+                              <span className="bg-emerald-600 text-white font-black text-xs px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-xs">
+                                Contemplado
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                      {drawResults.quadra.map(g => (
-                        <div key={g.id} className="text-xs text-emerald-800 font-semibold">
-                          ✔ {g.userName} - QUADRA: [{g.numbers.join(', ')}]
+                      ) : (
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center text-slate-500 text-xs font-medium">
+                          Nenhum bilhete vendido cadastrado na plataforma foi contemplado.
                         </div>
-                      ))}
+                      )}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400 font-medium text-center py-2">Nenhum bilhete premiado de Quadra, Quina ou Sena nesta simulação.</p>
+                    <>
+                      <div className="space-y-3">
+                        {/* Sena */}
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span className="text-xs font-extrabold text-amber-800">SENA (6 acertos)</span>
+                          </div>
+                          <span className="font-mono font-bold text-amber-900 text-sm">{drawResults.sena.length} bilhetes</span>
+                        </div>
+
+                        {/* Quina */}
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                            <span className="text-xs font-extrabold text-indigo-800">QUINA (5 acertos)</span>
+                          </div>
+                          <span className="font-mono font-bold text-indigo-900 text-sm">{drawResults.quina.length} bilhetes</span>
+                        </div>
+
+                        {/* Quadra */}
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-xs font-extrabold text-emerald-800">QUADRA (4 acertos)</span>
+                          </div>
+                          <span className="font-mono font-bold text-emerald-900 text-sm">{drawResults.quadra.length} bilhetes</span>
+                        </div>
+
+                        {/* Terno */}
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+                            <span className="text-xs font-extrabold text-slate-700">TERNO (3 acertos)</span>
+                          </div>
+                          <span className="font-mono font-bold text-slate-800 text-sm">{drawResults.terno.length} bilhetes</span>
+                        </div>
+                      </div>
+
+                      {/* Winner Lists details if any */}
+                      {[...drawResults.sena, ...drawResults.quina, ...drawResults.quadra].length > 0 ? (
+                        <div className="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-200 max-h-[180px] overflow-y-auto space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-450">Lista de Ganhadores:</p>
+                          {drawResults.sena.map(g => (
+                            <div key={g.id} className="text-xs text-amber-800 font-bold">
+                              ★ {g.userName} - SENA: [{g.numbers.join(', ')}]
+                            </div>
+                          ))}
+                          {drawResults.quina.map(g => (
+                            <div key={g.id} className="text-xs text-indigo-800 font-semibold">
+                              ✦ {g.userName} - QUINA: [{g.numbers.join(', ')}]
+                            </div>
+                          ))}
+                          {drawResults.quadra.map(g => (
+                            <div key={g.id} className="text-xs text-emerald-800 font-semibold">
+                              ✔ {g.userName} - QUADRA: [{g.numbers.join(', ')}]
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 font-medium text-center py-2">Nenhum bilhete premiado de Quadra, Quina ou Sena nesta simulação.</p>
+                      )}
+                    </>
                   )}
                 </div>
               )}

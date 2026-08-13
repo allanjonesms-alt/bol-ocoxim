@@ -1138,33 +1138,7 @@ export default function AdminPanel() {
             <p className="text-xs text-slate-500 font-medium">Ver lista completa, editar cadastros e gerenciar saldos.</p>
           </div>
         </Link>
-        <Link 
-          to="/admin/bolao" 
-          className="bg-white p-6 rounded-3xl shadow-md border border-slate-200 hover:border-emerald-300 hover:shadow-lg transition-all group relative overflow-hidden flex flex-col justify-center items-center gap-3 cursor-pointer"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-[50px] pointer-events-none group-hover:bg-emerald-500/10 transition-colors"></div>
-          <div className="bg-emerald-50 p-4 rounded-full text-emerald-600 group-hover:scale-110 group-hover:bg-emerald-100 transition-all flex items-center justify-center relative">
-            <Trophy className="w-8 h-8 text-emerald-650" />
-            <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">{matches.length}</span>
-          </div>
-          <div className="text-center">
-            <h3 className="font-display font-bold text-slate-800 text-base uppercase tracking-wider mb-1">Gerenciar Bolão</h3>
-            <p className="text-xs text-slate-500 font-medium">Cadastrar partidas, palpites manuais e resultados.</p>
-          </div>
-        </Link>
-        <Link 
-          to="/admin/logs" 
-          className="bg-white p-6 rounded-3xl shadow-md border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all group relative overflow-hidden flex flex-col justify-center items-center gap-3 cursor-pointer"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[50px] pointer-events-none group-hover:bg-indigo-500/10 transition-colors"></div>
-          <div className="bg-indigo-50 p-4 rounded-full text-indigo-600 group-hover:scale-110 group-hover:bg-indigo-100 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
-          </div>
-          <div className="text-center">
-            <h3 className="font-display font-bold text-slate-800 text-base uppercase tracking-wider mb-1">Logs de Apostas</h3>
-            <p className="text-xs text-slate-500 font-medium">Histórico detalhado das apostas no sistema.</p>
-          </div>
-        </Link>
+
         <Link 
           to="/admin/transactions" 
           className="bg-white p-6 rounded-3xl shadow-md border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all group relative overflow-hidden flex flex-col justify-center items-center gap-3 cursor-pointer"
@@ -1459,54 +1433,7 @@ export default function AdminPanel() {
       )}
 
 
-      {/* Winners Section Config */}
-      <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl shadow-sm mb-12">
-        <h2 className="font-display font-bold mb-6 text-slate-800 text-lg uppercase tracking-wider">Configurar Seção de Vencedores na Home</h2>
-        <div className="flex flex-col space-y-5 max-w-xl">
-          <div>
-            <label className="block text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Exibir Seção na Página Inicial</label>
-            <div className="flex items-center gap-3">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={winnersActive}
-                  onChange={(e) => setWinnersActive(e.target.checked)}
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-              </label>
-              <span className="text-sm font-bold text-slate-700">{winnersActive ? 'Ativada' : 'Desativada'}</span>
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Partida Oficial a Divulgar</label>
-            <select 
-              value={winnersMatchId} 
-              onChange={(e) => setWinnersMatchId(e.target.value)} 
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500/25 transition-all"
-            >
-              <option value="">Selecione uma partida oficial...</option>
-              {matches.filter(m => !m.isPromotional && m.status === 'finished').map(m => (
-                <option key={m.id} value={m.id}>{m.team1} x {m.team2} - {new Date(m.date).toLocaleDateString('pt-BR')} ({m.status})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="pt-4 flex justify-between items-center border-t border-slate-100">
-             <div className="text-xs text-slate-400 font-mono">
-               Última att: {formatDateTime(winnersSettings?.updatedAt)}
-             </div>
-             <button 
-                onClick={handleSaveWinnersSettings} 
-                disabled={savingWinnersSection}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-             >
-                {savingWinnersSection ? 'Salvando...' : 'Salvar Alterações'}
-             </button>
-          </div>
-        </div>
-      </div>
 
       {/* Toast Notification */}
       {toast && (

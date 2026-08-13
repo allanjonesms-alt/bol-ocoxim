@@ -983,54 +983,7 @@ export default function AdminBolao() {
         })()}
       </div>
 
-      {/* Winners Section Config */}
-      <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl shadow-sm mb-12">
-        <h2 className="font-display font-bold mb-6 text-slate-800 text-lg uppercase tracking-wider">Configurar Seção de Vencedores na Home</h2>
-        <div className="flex flex-col space-y-5 max-w-xl">
-          <div>
-            <label className="block text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Exibir Seção na Página Inicial</label>
-            <div className="flex items-center gap-3">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={winnersActive}
-                  onChange={(e) => setWinnersActive(e.target.checked)}
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-              </label>
-              <span className="text-sm font-bold text-slate-700">{winnersActive ? 'Ativada' : 'Desativada'}</span>
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Partida Oficial a Divulgar</label>
-            <select 
-              value={winnersMatchId} 
-              onChange={(e) => setWinnersMatchId(e.target.value)} 
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-bold outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500/25 transition-all"
-            >
-              <option value="">Selecione uma partida oficial...</option>
-              {matches.filter(m => !m.isPromotional && m.status === 'finished').map(m => (
-                <option key={m.id} value={m.id}>{m.team1} x {m.team2} - {new Date(m.date).toLocaleDateString('pt-BR')} ({m.status})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="pt-4 flex justify-between items-center border-t border-slate-100">
-             <div className="text-xs text-slate-400 font-mono">
-                Última att: {formatDateTime(winnersSettings?.updatedAt)}
-             </div>
-             <button 
-                onClick={handleSaveWinnersSettings} 
-                disabled={savingWinnersSection}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-             >
-                {savingWinnersSection ? 'Salvando...' : 'Salvar Alterações'}
-             </button>
-          </div>
-        </div>
-      </div>
 
       {/* Leaderboard Section Config */}
       <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl shadow-sm mb-12">

@@ -647,41 +647,7 @@ export default function Home() {
 
 
 
-      {/* Vencedores Section */}
-      {winnersSettings?.active && winnersMatch && (
-        <div className="bg-gradient-to-r from-yellow-500/10 via-amber-500/5 to-white border border-amber-300 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-yellow-400/10 rounded-full blur-[60px] pointer-events-none"></div>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-            <div>
-              <h2 className="text-2xl font-display font-black text-amber-600 flex items-center justify-center md:justify-start gap-2.5">
-                <Medal className="h-7 w-7" />
-                VENCEDORES: {winnersMatch.team1} <span className="text-slate-400 font-mono mx-1">{winnersMatch.result1}x{winnersMatch.result2}</span> {winnersMatch.team2}
-              </h2>
-              <p className="text-slate-600 text-sm mt-1.5 font-medium text-center md:text-left">
-                Ganhadores da última rodada oficial e o prêmio que cada um levou!
-              </p>
-            </div>
-          </div>
-          
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {winnersData.length > 0 ? (
-              winnersData.map((winner, idx) => (
-                <div key={`${winner.id}-${idx}`} className="bg-white border border-amber-200 rounded-2xl p-4 flex items-center gap-4 hover:border-amber-400 transition-colors shadow-sm">
-                  <div className="bg-amber-100 p-2.5 rounded-full text-amber-700">
-                    <Trophy className="h-5 w-5" />
-                  </div>
-                  <div className="overflow-hidden">
-                    <h4 className="font-bold text-slate-800 text-sm truncate">{winner.name}</h4>
-                    <p className="text-amber-700 font-mono font-bold text-xs mt-0.5">Ganhou: R$ {winner.amount}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full py-6 text-center text-slate-500 font-medium">Nenhum ganhador nesta partida. O prêmio acumulou!</div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Vencedores Section (ocultada conforme solicitação) */}
 
 
       {/* Sessão PIX PREMIADO */}
