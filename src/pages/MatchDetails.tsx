@@ -404,24 +404,10 @@ export default function MatchDetails() {
       if (match.isPromotional) {
         const userBets = bets.filter(b => b.userId === user.uid);
         if (userBets.length >= 2) {
-          setBetError('Você atingiu o limite de 2 apostas para jogos promocionais.');
+          setBetError('Você atingiu o limite de 2 palpites para jogos promocionais.');
           setPlacingBet(false);
           return;
         }
-      }
-
-      // Check for existing pending bet
-      const pendingBets = bets.filter(b => b.userId === user.uid && b.status === 'pending');
-      
-      let betAmount = 5;
-      if (match.isPromotional) {
-        betAmount = 2;
-      }
-      const hasBalance = (profile.balance ?? 0) >= betAmount;
-      if (!hasBalance && pendingBets.length >= 2) {
-        setBetError('Você já atingiu o limite de 2 apostas pendentes por falta de saldo neste jogo. Adicione saldo para confirmar.');
-        setPlacingBet(false);
-        return;
       }
 
       await runTransaction(db, async (transaction) => {
@@ -434,31 +420,10 @@ export default function MatchDetails() {
         if (!userDoc.exists() || !matchDoc.exists()) throw new Error('Documento não encontrado.');
         
         if (matchDoc.data().status !== 'open') {
-          throw new Error('Apostas encerradas para esta partida.');
+          throw new Error('Palpites encerrados para esta partida.');
         }
 
-        const actualBalance = userDoc.data().balance;
-        const canPay = actualBalance >= betAmount;
-
-        if (canPay) {
-          transaction.update(userRef, { balance: actualBalance - betAmount });
-          
-          // Record transaction
-          const transRef = doc(collection(db, 'transactions'));
-          transaction.set(transRef, {
-            userId: user.uid,
-            type: 'bet',
-            amount: betAmount,
-            status: 'confirmed', // Automatically confirmed because bet is paid
-            timestamp: serverTimestamp()
-          });
-
-          // Update poolTotal in match
-          const poolAddition = match.isPromotional ? betAmount * 0.5 : betAmount;
-          transaction.update(matchRef, { poolTotal: (matchDoc.data().poolTotal || 0) + poolAddition });
-        }
-        
-        // Add bet
+        // Add palpite (free of monetary charges)
         const betRef = doc(collection(db, 'bets'));
         transaction.set(betRef, {
           userId: user.uid,
@@ -466,23 +431,19 @@ export default function MatchDetails() {
           matchId: match.id,
           predicted1: p1,
           predicted2: p2,
-          amount: betAmount,
-          status: canPay ? 'confirmed' : 'pending',
-          paid: canPay,
+          amount: 0,
+          status: 'confirmed',
+          paid: true,
           createdAt: serverTimestamp()
         });
       });
       
       setPredict1('');
       setPredict2('');
-      if (hasBalance) {
-        showToast('Sua aposta foi registrada com sucesso e aprovada automaticamente pelo sistema.', 'success');
-      } else {
-        showToast(`Sua aposta foi registrada como PENDENTE pois você não possui saldo suficiente (R$ ${betAmount.toFixed(2)}). Adicione créditos no seu painel para ser homologada.`, 'warning');
-      }
+      showToast('Seu palpite foi registrado com sucesso! Boa sorte!', 'success');
 
     } catch (err: any) {
-      setBetError(err.message || 'Erro ao realizar aposta.');
+      setBetError(err.message || 'Erro ao registrar palpite.');
       console.error(err);
     } finally {
       setPlacingBet(false);
@@ -661,10 +622,9 @@ export default function MatchDetails() {
             </span>
           </div>
         ) : (
-          <div className="bg-emerald-55/65 px-6 py-5 border-t border-emerald-100 flex justify-center items-center relative z-10 font-semibold text-emerald-900">
-            <span className="text-slate-500 text-xs uppercase tracking-wider mr-3">Prêmio Acumulado P/ Vencedores:</span>
-            <span className="font-extrabold text-emerald-700 font-mono text-2xl">
-              R$ {(match.poolTotal * 0.9).toFixed(2)}
+          <div className="bg-emerald-55/65 px-6 py-4 border-t border-emerald-100 flex justify-center items-center relative z-10 font-semibold text-emerald-900">
+            <span className="text-emerald-700 font-bold uppercase tracking-wider text-sm flex items-center gap-2">
+              🏆 Partida Oficial do Bolão - Ganhe pontos para a Classificação Geral
             </span>
           </div>
         )}
@@ -704,8 +664,7 @@ export default function MatchDetails() {
                     <span className="font-bold text-sm text-white">{match.team2}</span>
                   </div>
                   <p className="text-[11px] text-red-400/90 font-semibold mt-3">
-                    ⚠️ ATENÇÃO: Esta ação é definitiva e irreversível! Todos os palpites serão avaliados,
-                    os pontos computados no ranking, e os ganhadores receberão sua parte proporcional do prêmio de <strong className="text-white">R$ {(match.poolTotal * 0.9).toFixed(2)}</strong>.
+                    ⚠️ ATENÇÃO: Esta ação é definitiva e irreversível! Todos os palpites serão avaliados e os pontos computados no ranking geral do bolão.
                   </p>
                 </div>
               </div>
@@ -723,7 +682,7 @@ export default function MatchDetails() {
                   disabled={finalizing}
                   className="px-6 py-2.5 rounded-xl bg-red-650 hover:bg-red-550 text-xs font-black text-white transition flex items-center justify-center gap-1.5 shadow-md shadow-red-500/10 disabled:opacity-50"
                 >
-                  {finalizing ? 'Processando...' : 'Confirmar Encerramento e Distribuir Prêmios'}
+                  {finalizing ? 'Processando...' : 'Confirmar Encerramento da Partida'}
                 </button>
               </div>
             </div>
@@ -929,16 +888,13 @@ export default function MatchDetails() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-3xl shadow-md border border-slate-200 p-8 sticky top-24">
             <h2 className="text-xl font-display font-bold text-slate-800 mb-6 flex items-center pb-4 border-b border-slate-100">
-              Fazer Aposta 
-              <span className={`${match.isPromotional ? 'text-indigo-600' : 'text-emerald-600'} ml-2 font-mono text-lg`}>
-                (R$ {match.isPromotional ? '2,00' : '5,00'})
-              </span>
+              Registrar Palpite
             </h2>
             
             {match.status !== 'open' || (new Date(match.date).getTime() - Date.now() < 30 * 60 * 1000) ? (
               <div className="bg-slate-50 text-slate-400 font-medium p-6 rounded-2xl text-center text-sm border border-slate-100 flex flex-col items-center mb-2">
                 <Lock className="h-6 w-6 text-slate-350 mb-2" />
-                Apostas encerradas para este jogo.
+                Palpites encerrados para este jogo.
               </div>
             ) : !user ? (
               <div className="bg-slate-55 border border-slate-200/80 text-slate-600 font-medium p-6 sm:p-7 rounded-2xl text-center text-sm flex flex-col items-center">
@@ -958,7 +914,7 @@ export default function MatchDetails() {
                 <div className="bg-indigo-100 p-3 rounded-full text-indigo-700">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <p className="font-bold text-base text-slate-800">Limite de Apostas Atingido</p>
+                <p className="font-bold text-base text-slate-800">Limite de Palpites Atingido</p>
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">
                   Você já registrou os 2 palpites permitidos para esta partida promocional.
                 </p>
@@ -1002,7 +958,7 @@ export default function MatchDetails() {
                   disabled={placingBet}
                   className="w-full bg-emerald-600 text-white font-bold py-4 rounded-2xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-emerald-600/10 text-lg cursor-pointer"
                 >
-                  {placingBet ? 'Processando...' : 'Confirmar Aposta'}
+                  {placingBet ? 'Processando...' : 'Confirmar Palpite'}
                 </button>
               </form>
             )}
@@ -1313,18 +1269,13 @@ export default function MatchDetails() {
                             </div>
                           ) : isWinning ? (
                             <div className="text-[11px] font-black text-white bg-emerald-600 border border-emerald-700 px-2 py-1 rounded flex flex-col items-end shadow-sm animate-pulse">
-                              <span className="text-[8px] text-emerald-100 uppercase font-bold mb-0.5">{match.isPromotional ? 'Pontos' : 'Retorno'}</span>
-                              {match.isPromotional ? '+ Pontos' : `R$ ${currentPrizePerPerson}`}
-                            </div>
-                          ) : !match.isPromotional ? (
-                            <div className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded flex flex-col items-end">
-                               <span className="text-[8px] text-emerald-500/75 uppercase font-bold mb-0.5">Retorno</span>
-                              R$ {currentPrizePerPerson}
+                              <span className="text-[8px] text-emerald-100 uppercase font-bold mb-0.5">Pontuação</span>
+                              + Pontos
                             </div>
                           ) : (
-                            <div className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded flex flex-col items-end">
-                               <span className="text-[8px] text-indigo-500/75 uppercase font-bold mb-0.5">PONTOS</span>
-                               + Pontos
+                            <div className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded flex flex-col items-end">
+                              <span className="text-[8px] text-emerald-500/75 uppercase font-bold mb-0.5">Bolão</span>
+                              Ativo
                             </div>
                           )}
                         </div>

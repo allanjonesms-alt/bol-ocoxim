@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, getDocFromCache, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import { Trophy } from 'lucide-react';
 import { isAdminEmail } from '../lib/utils';
+import { signInWithGoogle } from '../lib/auth-helpers';
 import logoImg from '../assets/images/pix_coxim_logo_1784559379366.jpg';
 
 export default function Login() {
@@ -12,11 +12,13 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setPopupBlocked(false);
     setLoading(true);
     
     const form = e.currentTarget as HTMLFormElement;
@@ -94,61 +96,23 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setError('');
+    setPopupBlocked(false);
     setLoading(true);
     
-    console.log('[DEBUG] Google Login Info - Auth exists:', !!auth);
-    if (!auth) {
-      setError('Erro de inicialização do Firebase Auth para login com Google.');
-      setLoading(false);
-      return;
-    }
-    
     try {
-      const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      
-      const userEmail = userCredential.user.email || '';
-      
-      // Attempt profile document verification gracefully without failing auth if offline
-      try {
-        const userRef = doc(db, 'users', userCredential.user.uid);
-        let docSnap;
-        try {
-          docSnap = await getDoc(userRef);
-        } catch (fErr) {
-          console.warn('[Google Login] Server getDoc failed, trying cache:', fErr);
-          try {
-            docSnap = await getDocFromCache(userRef);
-          } catch (cErr) {
-            console.warn('[Google Login] Cache getDoc failed:', cErr);
-          }
+      const result = await signInWithGoogle();
+      if (result.success) {
+        if (!result.redirected) {
+          navigate('/');
         }
-        
-        if (!docSnap || !docSnap.exists()) {
-          const userRole = isAdminEmail(userEmail) ? 'admin' : 'user';
-          await setDoc(userRef, {
-            name: userCredential.user.displayName || userEmail.split('@')[0],
-            email: userEmail,
-            phone: '',
-            pix_key: '',
-            balance: 0,
-            role: userRole,
-            createdAt: serverTimestamp()
-          }).catch(sErr => console.warn('[Google Login] setDoc profile warning:', sErr));
-        }
-      } catch (profileErr) {
-        console.warn('[Google Login] Non-blocking profile check error:', profileErr);
-      }
-      
-      navigate('/');
-    } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError('Login com Google cancelado pelo usuário.');
-      } else if (err.code === 'auth/network-request-failed' || (err.message && err.message.toLowerCase().includes('offline'))) {
-        setError('Erro de conexão com o servidor. Verifique sua conexão e tente novamente.');
       } else {
-        setError(err.message || 'Erro ao entrar com Google.');
+        if (result.isPopupBlocked) {
+          setPopupBlocked(true);
+        }
+        setError(result.error || 'Erro ao realizar login com o Google.');
       }
+    } catch (err: any) {
+      setError(err?.message || 'Erro inesperado ao entrar com Google.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -173,9 +137,23 @@ export default function Login() {
         </div>
 
         {error && (
-          <div className="bg-red-50 text-red-650 p-4 rounded-xl mb-6 text-sm border border-red-100 flex items-center shadow-inner relative z-10">
-            <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-            {error}
+          <div className="bg-red-50 text-red-700 p-4 rounded-xl mb-6 text-sm border border-red-200 flex flex-col gap-2.5 shadow-inner relative z-10">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 mr-2.5 flex-shrink-0 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium leading-relaxed">{error}</span>
+            </div>
+            {popupBlocked && (
+              <a
+                href={window.location.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 text-center bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-red-300 shadow-xs"
+              >
+                Abrir em nova aba para autenticar com Google ↗
+              </a>
+            )}
           </div>
         )}
 

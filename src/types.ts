@@ -60,15 +60,27 @@ export interface Transaction {
   status: TransactionStatus;
   timestamp: string;
   pixReceiptDate?: string; // For withdrawals (Saques)
+  description?: string;
+  relatedBatchId?: string;
+  ticketCount?: number;
+  discountPercent?: number;
 }
 
 export interface PixPremiadoGame {
   id: string;
   userId: string;
   userName: string;
-  numbers: number[]; // Array of 6 numbers
+  numbers: number[]; // Array of 6 numbers or single Federal ticket number [number]
   price: number;
   createdAt: any; // Firestore Timestamp
+  status?: 'confirmed' | 'pending';
+  paid?: boolean;
+  batchId?: string;
+  discountPercent?: number;
+  totalBatchCost?: number;
+  ticketCount?: number;
+  drawType?: 'MegaSena' | 'Loteria Federal';
+  paidAt?: any;
 }
 
 export interface PixPremiadoDraw {

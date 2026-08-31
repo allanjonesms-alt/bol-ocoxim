@@ -109,7 +109,7 @@ export async function generateMatchBetsPDF(match: Match): Promise<boolean> {
     doc.setFontSize(9.5);
     doc.setTextColor(71, 85, 105); // Slate 600
     doc.text(`Data/Hora do Jogo: ${matchDateFormatted}`, 20, 73);
-    doc.text(`Prêmio Acumulado da Partida: R$ ${(match.poolTotal * 0.9).toFixed(2)} (Taxa de 10% administrativa deduzida)`, 20, 78);
+    doc.text(`Fase: ${match.phase || 'Fase de Grupos'}`, 20, 78);
 
     // Right Aligned stats in the match card
     doc.setFont('helvetica', 'bold');
@@ -119,11 +119,11 @@ export async function generateMatchBetsPDF(match: Match): Promise<boolean> {
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const costText = match.isPromotional ? `Jogo Promocional (R$ ${match.phase === '2ª FASE' || match.phase === 'OITAVAS DE FINAL' ? '2,00' : '1,00'})` : 'Jogo Oficial (R$ 5,00)';
+    const costText = match.isPromotional ? 'Jogo Promocional' : 'Jogo Oficial';
     doc.text(`Tipo do Jogo: ${costText}`, 190, 73, { align: 'right' });
 
     // 6. Bets Table Header and content
-    const tableHeaders = [['Nº', 'Participante', 'Palpite Registrado', 'Valor Aposta', 'Data/Hora Confirmação']];
+    const tableHeaders = [['Nº', 'Participante', 'Palpite Registrado', 'Data/Hora Confirmação']];
     
     const tableBody = betsList.length > 0 
       ? betsList.map((bet, index) => {
@@ -131,11 +131,10 @@ export async function generateMatchBetsPDF(match: Match): Promise<boolean> {
             String(index + 1).padStart(3, '0'),
             bet.userName || 'Participante',
             `${bet.predicted1} x ${bet.predicted2}`,
-            `R$ ${bet.amount.toFixed(2)}`,
             formatDateTime(bet.createdAt),
           ];
         })
-      : [['-', 'Nenhum palpite confirmado para este jogo.', '-', '-', '-']];
+      : [['-', 'Nenhum palpite confirmado para este jogo.', '-', '-']];
 
     // Build beautiful table using jspdf-autotable
     autoTable(doc, {
@@ -154,8 +153,7 @@ export async function generateMatchBetsPDF(match: Match): Promise<boolean> {
         0: { cellWidth: 15, halign: 'center' }, // index
         1: { fontStyle: 'bold', textColor: [30, 41, 59] }, // name
         2: { fontStyle: 'bold', textColor: [16, 115, 73], halign: 'center', fontSize: 11 }, // score
-        3: { halign: 'right' }, // value
-        4: { textColor: [100, 116, 139] }, // date
+        3: { textColor: [100, 116, 139], halign: 'right' }, // date
       },
       styles: {
         font: 'helvetica',

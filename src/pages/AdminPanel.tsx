@@ -27,6 +27,7 @@ const processImage = (file: File): Promise<string> => {
   });
 };
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
+import { reconcilePendingProvisionalTickets, cancelAndReleaseReservedTicketsForTransaction } from '../utils/provisionalTicketManager';
 import { Trophy, Edit, Check, X, AlertTriangle, Clock, Wallet, Dices, Sparkles, Eye, EyeOff, Key, Copy, ShieldCheck, RefreshCw, Activity } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -493,30 +494,47 @@ export default function AdminPanel() {
         }
         transaction.update(transRef, transUpdate);
 
-        if (t.type === 'deposit' && newBalance >= 5) {
-          const pbets = await getDocs(query(collection(db, 'bets'), where('userId', '==', t.userId), where('status', '==', 'pending')));
-          let currentBalance = newBalance;
-          for (const pb of pbets.docs) {
-            const betData = pb.data();
-            const isAlreadyPaid = betData.paid;
-            if (!isAlreadyPaid && currentBalance >= 5) {
-               currentBalance -= 5;
-               transaction.update(doc(db, 'bets', pb.id), { paid: true });
-               transaction.update(userRef, { balance: currentBalance });
+        if (t.type === 'deposit') {
+          // Check for pending sports bets
+          if (newBalance >= 5) {
+            const pbets = await getDocs(query(collection(db, 'bets'), where('userId', '==', t.userId), where('status', '==', 'pending')));
+            let currentBalance = newBalance;
+            for (const pb of pbets.docs) {
+              const betData = pb.data();
+              const isAlreadyPaid = betData.paid;
+              if (!isAlreadyPaid && currentBalance >= 5) {
+                 currentBalance -= 5;
+                 transaction.update(doc(db, 'bets', pb.id), { paid: true });
+                 transaction.update(userRef, { balance: currentBalance });
 
-               // Record standard pending bet transaction
-               const btransRef = doc(collection(db, 'transactions'));
-               transaction.set(btransRef, {
-                 userId: t.userId,
-                 type: 'bet',
-                 amount: 5,
-                 status: 'pending',
-                 timestamp: serverTimestamp()
-               });
+                 // Record standard pending bet transaction
+                 const btransRef = doc(collection(db, 'transactions'));
+                 transaction.set(btransRef, {
+                   userId: t.userId,
+                   type: 'bet',
+                   amount: 5,
+                   status: 'pending',
+                   timestamp: serverTimestamp()
+                 });
+              }
             }
           }
         }
       });
+
+      // Auto-reconcile and pay for any provisional Pix Premiado tickets
+      if (t.type === 'deposit') {
+        try {
+          const { paidTicketsCount, totalDeducted } = await reconcilePendingProvisionalTickets(db, t.userId);
+          if (paidTicketsCount > 0) {
+            showNotification(`Transação aprovada! ${paidTicketsCount} bilhete(s) provisório(s) do usuário foram pagos automaticamente (R$ ${totalDeducted.toFixed(2)}).`);
+            return;
+          }
+        } catch (rErr) {
+          console.warn('[AdminPanel] Provisional ticket reconciliation notice:', rErr);
+        }
+      }
+
       showNotification('Transação aprovada com sucesso!');
     } catch(err) {
       handleFirestoreError(err, OperationType.UPDATE, 'transactions');
@@ -525,10 +543,22 @@ export default function AdminPanel() {
 
   const executeRejectTransaction = async (t: Transaction) => {
     try {
-      await deleteDoc(doc(db, 'transactions', t.id));
-      showNotification('Transação recusada e excluída com sucesso!');
+      // 1. Cancel and release any reserved provisional numbers back to the pool
+      const { cancelledTicketsCount } = await cancelAndReleaseReservedTicketsForTransaction(db, t);
+
+      // 2. Mark the transaction as rejected
+      await updateDoc(doc(db, 'transactions', t.id), {
+        status: 'rejected',
+        rejectedAt: serverTimestamp()
+      });
+
+      if (cancelledTicketsCount > 0) {
+        showNotification(`Transação recusada! ${cancelledTicketsCount} número(s) reservado(s) foram cancelados do usuário e liberados para nova compra.`);
+      } else {
+        showNotification('Transação recusada com sucesso!');
+      }
     } catch(err) {
-      handleFirestoreError(err, OperationType.DELETE, 'transactions');
+      handleFirestoreError(err, OperationType.UPDATE, 'transactions');
     }
   }
 
@@ -1482,7 +1512,7 @@ export default function AdminPanel() {
               <div className="p-6 space-y-4">
                 <p className="text-slate-650 text-sm leading-relaxed">
                   Deseja realmente <strong className={isApprove ? "text-emerald-700 font-bold" : "text-red-700 font-bold"}>
-                    {isApprove ? 'APROVAR' : 'RECUSAR E EXCLUIR'}
+                    {isApprove ? 'APROVAR' : 'RECUSAR'}
                   </strong> o {t.type === 'deposit' ? 'depósito' : 'saque'} de <span className="font-mono text-slate-800 font-bold bg-slate-100 px-2 py-0.5 rounded">R$ {t.amount.toFixed(2)}</span> solicitado por <strong className="text-slate-800 font-bold">{u?.displayId ? `#${u.displayId} - ` : ''}{u?.name || 'Jogador'}</strong>?
                 </p>
                 {t.type === 'withdrawal' && (
@@ -1507,9 +1537,15 @@ export default function AdminPanel() {
                   </div>
                 )}
                 {!isApprove && (
-                  <p className="text-xs text-amber-800 font-semibold bg-amber-50 border border-amber-200 p-2.5 rounded-xl">
-                    Aviso: Recusar esta transação irá deletá-la definitivamente de todos os históricos!
-                  </p>
+                  <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-1">
+                    <p className="font-bold flex items-center gap-1.5 text-amber-800">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      Aviso de Recusa:
+                    </p>
+                    <p className="leading-relaxed">
+                      Ao recusar esta transação, todos os números reservados provisoriamente por este usuário serão <strong>cancelados imediatamente</strong> e ficarão <strong>novamente à disposição para compra</strong> por outros participantes.
+                    </p>
+                  </div>
                 )}
               </div>
 

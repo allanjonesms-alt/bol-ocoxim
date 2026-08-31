@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc, getDoc, getDocFromCache, serverTimestamp, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import { Trophy } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import { isAdminEmail } from '../lib/utils';
+import { signInWithGoogle, getNextAvailableNumericId } from '../lib/auth-helpers';
 import logoImg from '../assets/images/pix_coxim_logo_1784559379366.jpg';
 
 export default function Register() {
@@ -18,6 +18,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,31 +35,10 @@ export default function Register() {
     }
   }, [location, locationState]);
 
-  const getNextAvailableId = async () => {
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, orderBy('numericId', 'desc'), limit(1));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const lastNumericId = snap.docs[0].data().numericId || 0;
-        return lastNumericId + 1;
-      }
-    } catch (e) {
-      console.error("Error getting next id", e);
-    }
-    // Fallback if no users or error
-    try {
-      // Just in case numericId index is missing, let's just get size
-      const snap = await getDocs(collection(db, 'users'));
-      return snap.size + 1;
-    } catch (e) {
-      return 1;
-    }
-  };
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setPopupBlocked(false);
     setLoading(true);
     
     try {
@@ -70,7 +50,7 @@ export default function Register() {
       const userRole = isAdminEmail(email) ? 'admin' : 'user';
       
       // Compute ID
-      const nextId = await getNextAvailableId();
+      const nextId = await getNextAvailableNumericId();
       const displayId = nextId.toString().padStart(3, '0');
       
       // Create user document
@@ -105,57 +85,23 @@ export default function Register() {
 
   const handleGoogleRegister = async () => {
     setError('');
+    setPopupBlocked(false);
     setLoading(true);
     
     try {
-      const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      
-      const userEmail = userCredential.user.email || '';
-      
-      try {
-        const userRef = doc(db, 'users', userCredential.user.uid);
-        let docSnap;
-        try {
-          docSnap = await getDoc(userRef);
-        } catch (fErr) {
-          try {
-            docSnap = await getDocFromCache(userRef);
-          } catch (cErr) {
-            console.warn('[Google Register] Cache getDoc failed:', cErr);
-          }
+      const result = await signInWithGoogle();
+      if (result.success) {
+        if (!result.redirected) {
+          navigate('/');
         }
-        
-        if (!docSnap || !docSnap.exists()) {
-          const nextId = await getNextAvailableId();
-          const displayId = nextId.toString().padStart(3, '0');
-          
-          const userRole = isAdminEmail(userEmail) ? 'admin' : 'user';
-          await setDoc(userRef, {
-            name: userCredential.user.displayName || userEmail.split('@')[0],
-            email: userEmail,
-            phone: '',
-            pix_key: '',
-            balance: 0,
-            role: userRole,
-            createdAt: serverTimestamp(),
-            numericId: nextId,
-            displayId: displayId,
-          }).catch(sErr => console.warn('[Google Register] setDoc warning:', sErr));
-        }
-      } catch (profileErr) {
-        console.warn('[Google Register] Profile check warning:', profileErr);
-      }
-      
-      navigate('/');
-    } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError('Cadastro com Google cancelado pelo usuário.');
-      } else if (err.code === 'auth/network-request-failed' || (err.message && err.message.toLowerCase().includes('offline'))) {
-        setError('Erro de conexão com o servidor. Verifique sua conexão e tente novamente.');
       } else {
-        setError(err.message || 'Erro ao cadastrar com Google.');
+        if (result.isPopupBlocked) {
+          setPopupBlocked(true);
+        }
+        setError(result.error || 'Erro ao cadastrar com o Google.');
       }
+    } catch (err: any) {
+      setError(err?.message || 'Erro inesperado ao cadastrar com Google.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -178,9 +124,23 @@ export default function Register() {
         </div>
 
         {error && (
-          <div className="bg-red-50 text-red-650 p-4 rounded-xl mb-6 text-sm border border-red-100 flex items-center shadow-inner relative z-10">
-            <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-            {error}
+          <div className="bg-red-50 text-red-700 p-4 rounded-xl mb-6 text-sm border border-red-200 flex flex-col gap-2.5 shadow-inner relative z-10">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 mr-2.5 flex-shrink-0 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium leading-relaxed">{error}</span>
+            </div>
+            {popupBlocked && (
+              <a
+                href={window.location.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 text-center bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 px-3 rounded-lg text-xs transition-colors border border-red-300 shadow-xs"
+              >
+                Abrir em nova aba para autenticar com Google ↗
+              </a>
+            )}
           </div>
         )}
 

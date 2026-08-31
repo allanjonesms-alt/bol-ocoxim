@@ -15,8 +15,12 @@ export function calculatePixTicketPrice(count: number): PixPricingResult {
     discountPercent = 30;
   } else if (safeCount >= 50) {
     discountPercent = 20;
+  } else if (safeCount >= 20) {
+    discountPercent = 15;
   } else if (safeCount >= 10) {
     discountPercent = 10;
+  } else if (safeCount >= 5) {
+    discountPercent = 5;
   }
 
   const originalPrice = safeCount * unitPrice;

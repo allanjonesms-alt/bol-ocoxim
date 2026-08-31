@@ -191,9 +191,8 @@ export default function AllMatches() {
 
         <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center relative z-10 w-full flex-wrap sm:flex-nowrap gap-2">
           <div className="flex items-center gap-2">
-            <span className="bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-mono font-bold border border-emerald-100 flex items-center gap-1.5">
-              <span>Prêmio:</span>
-              <span className="text-sm">R$ {match.poolTotal?.toFixed(2) || '0.00'}</span>
+            <span className="bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-100 flex items-center gap-1.5">
+              <span>{match.phase || (match.isPromotional ? 'Promocional' : 'Oficial')}</span>
             </span>
           </div>
 

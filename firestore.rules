@@ -159,14 +159,8 @@ service cloud.firestore {
         isOwner(incoming().userId) || isAdmin()
       );
       allow update: if isValidId(transactionId) && (
-        (isValidTransaction(incoming()) && isAdmin()) ||
-        (isAdmin() &&
-         incoming().userId == existing().userId &&
-         incoming().type == existing().type &&
-         incoming().amount == existing().amount &&
-         incoming().timestamp == existing().timestamp &&
-         incoming().status in ['pending', 'confirmed']
-        )
+        isAdmin() ||
+        (isSignedIn() && existing().userId == request.auth.uid)
       );
       allow delete: if isValidId(transactionId) && isAdmin();
     }
@@ -207,7 +201,7 @@ service cloud.firestore {
     match /pix_premiado_games/{docId} {
       allow read: if true;
       allow create: if isSignedIn() && (isAdmin() || incoming().userId == request.auth.uid);
-      allow update: if isAdmin();
+      allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
       allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
     }
 

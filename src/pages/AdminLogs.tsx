@@ -111,7 +111,7 @@ export default function AdminLogs() {
           </Link>
           <h1 className="text-3xl font-display font-bold text-slate-800 flex items-center gap-3">
             <History className="h-8 w-8 text-emerald-600" />
-            Logs de Apostas
+            Logs de Palpites
           </h1>
         </div>
         <div className="relative w-full sm:w-72">
@@ -128,7 +128,7 @@ export default function AdminLogs() {
 
       <div className="bg-white p-6 rounded-3xl shadow-md border border-slate-200">
         <div className="overflow-x-auto custom-scrollbar border border-slate-150 rounded-2xl">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-bold">
                 <th className="py-4 px-5 w-40">Data/Hora</th>
@@ -136,15 +136,14 @@ export default function AdminLogs() {
                 <th className="py-4 px-5">Jogo</th>
                 <th className="py-4 px-5">Tipo</th>
                 <th className="py-4 px-5">Palpite</th>
-                <th className="py-4 px-5">Valor</th>
-                <th className="py-4 px-5">Status / Pago</th>
+                <th className="py-4 px-5">Status</th>
                 <th className="py-4 px-5 text-right w-20">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm text-slate-600 bg-white">
               {filteredBets.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400 font-medium">Nenhuma aposta encontrada.</td>
+                  <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">Nenhum palpite encontrado.</td>
                 </tr>
               ) : (
                 filteredBets.map(b => {
@@ -169,22 +168,16 @@ export default function AdminLogs() {
                           {b.predicted1} x {b.predicted2}
                         </span>
                       </td>
-                      <td className="py-3 px-5 font-mono font-bold text-slate-700">R$ {(b.amount || 5).toFixed(2)}</td>
                       <td className="py-3 px-5">
-                        <div className="flex gap-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${b.status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                            {b.status}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${b.paid ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                            {b.paid ? 'PAGO' : 'P/ PAGAR'}
-                          </span>
-                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${b.status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          {b.status === 'confirmed' ? 'Confirmado' : 'Pendente'}
+                        </span>
                       </td>
                       <td className="py-3 px-5 text-right">
                         <button 
                           onClick={() => setBetToDelete(b)}
-                          className="text-red-500 hover:text-white hover:bg-red-500 p-2 rounded-lg transition-colors inline-block"
-                          title="Excluir Registro de Aposta"
+                          className="text-red-500 hover:text-white hover:bg-red-500 p-2 rounded-lg transition-colors inline-block cursor-pointer"
+                          title="Excluir Registro de Palpite"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -207,11 +200,11 @@ export default function AdminLogs() {
             </div>
             
             <div>
-              <h3 className="text-xl font-display font-bold text-slate-800 mb-2">Excluir Log de Aposta</h3>
+              <h3 className="text-xl font-display font-bold text-slate-800 mb-2">Excluir Log de Palpite</h3>
               <p className="text-sm text-slate-600 font-medium">Tem certeza que deseja excluir o palpite <span className="font-bold text-slate-800">{betToDelete.predicted1} x {betToDelete.predicted2}</span> do usuário <span className="font-bold text-slate-800">{users.find(u => u.id === betToDelete.userId)?.name || betToDelete.userName}</span>?</p>
               <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                 <p className="text-xs text-amber-800 font-bold uppercase tracking-wider block mb-1">Atenção</p>
-                <p className="text-xs text-amber-900 font-medium leading-relaxed">Esta ação não altera o saldo do usuário. Serve apenas para corrigir falhas e duplicidades sistêmicas.</p>
+                <p className="text-xs text-amber-900 font-medium leading-relaxed">Esta ação remove o palpite da partida e do ranking.</p>
               </div>
             </div>
 

@@ -7,9 +7,11 @@ import { Trophy, CalendarClock, ChevronRight, CheckCircle2, Lock, Radio, Flame, 
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import MatchCountdown from '../components/MatchCountdown';
+import PixPaymentCard from '../components/PixPaymentCard';
 import { generateMatchBetsPDF } from '../utils/pdfGenerator';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 import { calculatePixTicketPrice } from '../utils/pixPricing';
+import { buyOrReservePixTickets, reconcilePendingProvisionalTickets, cancelUserProvisionalReservation } from '../utils/provisionalTicketManager';
 import { LEADERBOARD_PRIZE_MULTIPLIER } from '../utils/constants';
 import googleScoreboardImg from '../assets/images/google_scoreboard_1783945113545.jpg';
 import { motion, AnimatePresence } from 'motion/react';
@@ -25,6 +27,14 @@ export default function Home() {
   const [recentBoughtTickets, setRecentBoughtTickets] = useState<any[]>([]);
   const [showPixBoughtModal, setShowPixBoughtModal] = useState(false);
   const [userRaffleGames, setUserRaffleGames] = useState<PixPremiadoGame[]>([]);
+  const [provisionalPixModalData, setProvisionalPixModalData] = useState<{
+    amount: number;
+    originalAmount?: number;
+    discountPercent?: number;
+    ticketCount?: number;
+    reservedNumbers?: (number[] | number)[];
+    batchId?: string;
+  } | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'pix_premiado_draws'), where('status', '==', 'active'));
@@ -111,33 +121,6 @@ export default function Home() {
            (h.includes('espanha') || h.includes('spain')) && (a.includes('frança') || a.includes('franca') || a.includes('france'));
   };
 
-  // Helper to fetch random free pool games
-  const fetchRandomFreeGames = async (nToFetch: number): Promise<any[]> => {
-    const randomIndex = Math.floor(Math.random() * 30000);
-    
-    let q = query(
-      collection(db, 'pix_premiado_pool'),
-      where('assigned', '==', false),
-      where('index', '>=', randomIndex),
-      limit(nToFetch)
-    );
-    let snap = await getDocs(q);
-    let results = [...snap.docs];
-
-    if (results.length < nToFetch) {
-      const needed = nToFetch - results.length;
-      q = query(
-        collection(db, 'pix_premiado_pool'),
-        where('assigned', '==', false),
-        where('index', '<', randomIndex),
-        limit(needed)
-      );
-      const snap2 = await getDocs(q);
-      results = [...results, ...snap2.docs];
-    }
-    return results;
-  };
-
   const handleBuyPixTickets = async () => {
     if (!user || !profile) {
       showToast('Por favor, faça login para comprar bilhetes!', 'error');
@@ -150,156 +133,49 @@ export default function Home() {
       return;
     }
 
-    const { finalPrice, discountPercent } = calculatePixTicketPrice(count);
-    const totalCost = finalPrice;
-    const ticketPriceVal = count > 0 ? (finalPrice / count) : 1.00;
-    const currentBalance = profile.balance || 0;
-
-    if (currentBalance < totalCost) {
-      showToast(`Você não possui saldo suficiente (Saldo: R$ ${currentBalance.toFixed(2)} / Custo: R$ ${totalCost.toFixed(2)}). Redirecionando para movimentação financeira...`, 'error');
-      navigate(`/panel?openFinance=true&amount=${totalCost.toFixed(2)}`);
-      return;
-    }
-
-    const activeDraw = activePixDraws[0];
-    const isFederal = activeDraw && activeDraw.type === 'Loteria Federal';
-
+    const activeDraw = activePixDraws[0] || null;
     setIsPurchasingPix(true);
     try {
-      const boughtList: any[] = [];
-      if (isFederal) {
-        // Generate distinctive random numbers for Loteria Federal [0001 a 9999]
-        const chosenNumsArray = await fetchAvailableFederalNumbers(db, count);
+      const result = await buyOrReservePixTickets(db, user, profile, count, activeDraw);
 
-        await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await transaction.get(userRef);
-
-          if (!userSnap.exists()) throw new Error('Perfil de usuário não encontrado.');
-          const freshProfile = userSnap.data() as UserProfile;
-          const freshBalance = freshProfile.balance || 0;
-
-          if (freshBalance < totalCost) {
-            throw new Error('Saldo insuficiente detectado.');
-          }
-
-          // Deduct balance
-          transaction.update(userRef, { balance: freshBalance - totalCost });
-
-          // Log transaction
-          const transRef = doc(collection(db, 'transactions'));
-          transaction.set(transRef, {
-            userId: user.uid,
-            type: 'bet',
-            amount: -totalCost,
-            status: 'confirmed',
-            timestamp: serverTimestamp(),
-            description: `Compra de ${count} bilhete(s) Loteria Federal (Pix Premiado)${discountPercent > 0 ? ` (${discountPercent}% desc.)` : ''}`
-          });
-
-          // Write public games
-          chosenNumsArray.forEach(num => {
-            boughtList.push([num]);
-
-            const gameRef = doc(collection(db, 'pix_premiado_games'));
-            transaction.set(gameRef, {
-              userId: user.uid,
-              userName: freshProfile.name,
-              numbers: [num],
-              price: ticketPriceVal,
-              createdAt: serverTimestamp()
-            });
-          });
-        });
-
-        setRecentBoughtTickets(boughtList);
+      if (result.mode === 'confirmed') {
+        setRecentBoughtTickets(result.boughtNumbers);
         setShowPixBoughtModal(true);
-        showToast(`${count} bilhete(s) Loteria Federal comprado(s) com sucesso por R$ ${totalCost.toFixed(2)}!`, 'success');
+        showToast(`${result.count} bilhete(s) comprado(s) com sucesso por R$ ${result.finalPrice.toFixed(2)}!`, 'success');
         setPixTicketCount('1');
       } else {
-        // MegaSena: Get random unassigned games from pool
-        const poolDocs = await fetchRandomFreeGames(count);
-        if (poolDocs.length < count) {
-          throw new Error(`Não há jogos livres suficientes no pool! Disponíveis: ${poolDocs.length}, Solicitados: ${count}.`);
-        }
-
-        // 2. Write using Firestore transaction
-        await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await transaction.get(userRef);
-
-          if (!userSnap.exists()) throw new Error('Perfil de usuário não encontrado.');
-          const freshProfile = userSnap.data() as UserProfile;
-          const freshBalance = freshProfile.balance || 0;
-
-          if (freshBalance < totalCost) {
-            throw new Error('Saldo insuficiente detectado.');
-          }
-
-          // Deduct balance
-          transaction.update(userRef, { balance: freshBalance - totalCost });
-
-          // Log transaction
-          const transRef = doc(collection(db, 'transactions'));
-          transaction.set(transRef, {
-            userId: user.uid,
-            type: 'bet',
-            amount: -totalCost,
-            status: 'confirmed',
-            timestamp: serverTimestamp(),
-            description: `Compra de ${count} bilhete(s) do Pool PIX PREMIADO${discountPercent > 0 ? ` (${discountPercent}% desc.)` : ''}`
-          });
-
-          // Write games and assign in pool
-          poolDocs.forEach(docSnap => {
-            const gameNumbers = docSnap.data().numbers as number[];
-            boughtList.push(gameNumbers);
-            
-            // Mark assigned in pool doc
-            const poolDocRef = doc(db, 'pix_premiado_pool', docSnap.id);
-            transaction.update(poolDocRef, {
-              assigned: true,
-              assignedUserId: user.uid,
-              assignedUserName: freshProfile.name,
-              assignedAt: serverTimestamp()
-            });
-
-            // Write game
-            const gameRef = doc(collection(db, 'pix_premiado_games'));
-            transaction.set(gameRef, {
-              userId: user.uid,
-              userName: freshProfile.name,
-              numbers: gameNumbers,
-              price: ticketPriceVal,
-              createdAt: serverTimestamp()
-            });
-          });
+        // Mode is provisional reservation
+        setProvisionalPixModalData({
+          amount: result.finalPrice,
+          originalAmount: result.originalPrice,
+          discountPercent: result.discountPercent,
+          ticketCount: result.count,
+          reservedNumbers: result.boughtNumbers,
+          batchId: result.batchId
         });
-
-        // 3. Update metadata counts
-        try {
-          const metaRef = doc(db, 'pix_premiado_metadata', 'pool');
-          await runTransaction(db, async (transaction) => {
-            const metaSnap = await transaction.get(metaRef);
-            const currentAssigned = metaSnap.exists() ? (metaSnap.data().assignedGames || 0) : 0;
-            transaction.set(metaRef, {
-              assignedGames: currentAssigned + count
-            }, { merge: true });
-          });
-        } catch (metaErr) {
-          console.error("Error updating pool metadata count:", metaErr);
-        }
-
-        setRecentBoughtTickets(boughtList);
-        setShowPixBoughtModal(true);
-        showToast(`${count} bilhete(s) do pool comprado(s) com sucesso por R$ ${totalCost.toFixed(2)}!`, 'success');
+        showToast(`Reserva provisória de ${result.count} bilhete(s) realizada! Efetue o PIX para ativação automática.`, 'warning');
         setPixTicketCount('1');
       }
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || 'Erro ao comprar bilhetes.', 'error');
+      showToast(err.message || 'Erro ao processar compra de bilhetes.', 'error');
     } finally {
       setIsPurchasingPix(false);
+    }
+  };
+
+  const handleCancelReservation = async (batchId?: string) => {
+    if (!user) return;
+    try {
+      const { cancelledTicketsCount } = await cancelUserProvisionalReservation(db, user.uid, batchId);
+      if (cancelledTicketsCount > 0) {
+        showToast(`Reserva cancelada! ${cancelledTicketsCount} número(s) foram cancelados e liberados novamente para compra.`, 'warning');
+      } else {
+        showToast(`Reserva cancelada com sucesso!`, 'success');
+      }
+    } catch (err) {
+      console.error('Error cancelling reservation:', err);
+      showToast('Erro ao cancelar reserva.', 'error');
     }
   };
 
@@ -919,50 +795,149 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="relative z-10">
+            <div className="relative z-10 space-y-4">
               {(() => {
-                const allPurchasedItems = userRaffleGames.flatMap((g) =>
+                const confirmedGames = userRaffleGames.filter(g => g.status !== 'pending' && g.paid !== false);
+                const pendingGames = userRaffleGames.filter(g => g.status === 'pending' || g.paid === false);
+
+                const confirmedItems = confirmedGames.flatMap((g) =>
                   g.numbers.map((num) => ({
                     gameId: g.id,
                     numVal: num,
                     numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
                     isFourDigit: g.numbers.length === 1,
+                    status: 'confirmed',
                     dateStr: g.createdAt
                       ? (g.createdAt.toDate ? g.createdAt.toDate() : new Date(g.createdAt)).toLocaleDateString('pt-BR')
                       : ''
                   }))
                 );
+                confirmedItems.sort((a, b) => a.numVal - b.numVal);
 
-                // Sort numbers in ascending order regardless of purchase date
-                allPurchasedItems.sort((a, b) => a.numVal - b.numVal);
+                const pendingItems = pendingGames.flatMap((g) =>
+                  g.numbers.map((num) => ({
+                    gameId: g.id,
+                    numVal: num,
+                    numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
+                    isFourDigit: g.numbers.length === 1,
+                    status: 'pending',
+                    batchId: g.batchId,
+                    totalBatchCost: g.totalBatchCost,
+                    discountPercent: g.discountPercent,
+                    ticketCount: g.ticketCount,
+                    dateStr: g.createdAt
+                      ? (g.createdAt.toDate ? g.createdAt.toDate() : new Date(g.createdAt)).toLocaleDateString('pt-BR')
+                      : ''
+                  }))
+                );
+                pendingItems.sort((a, b) => a.numVal - b.numVal);
 
                 return (
-                  <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-5 shadow-lg space-y-3">
-                    <div className="flex items-center justify-between border-b border-indigo-500/20 pb-3">
-                      <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
-                        <Ticket className="w-4 h-4 text-yellow-400 shrink-0" />
-                        <span>Seus Números Adquiridos (Ordem Crescente)</span>
-                      </div>
-                      <span className="text-[11px] font-bold text-slate-300 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
-                        Total: <strong className="text-yellow-400 font-mono">{allPurchasedItems.length}</strong> {allPurchasedItems.length === 1 ? 'número' : 'números'}
-                      </span>
-                    </div>
+                  <div className="space-y-4">
+                    {/* Pending / Provisional Alert Banner */}
+                    {pendingGames.length > 0 && (
+                      <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-yellow-400 text-xs sm:text-sm block">
+                              Você tem {pendingGames.length} bilhete(s) com Reserva Provisória!
+                            </span>
+                            <p className="text-slate-300 text-xs mt-0.5">
+                              Pague o PIX para que o saldo entre e ative automaticamente seus números com desconto garantido.
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {allPurchasedItems.map((item, idx) => (
-                        <span
-                          key={`${item.gameId}-${idx}`}
-                          title={item.dateStr ? `Comprado em ${item.dateStr}` : undefined}
-                          className={`font-mono font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center border transition-transform hover:scale-105 ${
-                            item.isFourDigit 
-                              ? 'px-3.5 py-1.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-sm border-amber-300'
-                              : 'px-3 py-1 bg-yellow-400 text-slate-950 text-xs border-yellow-300'
-                          }`}
-                        >
-                          {item.isFourDigit ? `Nº ${item.numStr}` : item.numStr}
-                        </span>
-                      ))}
-                    </div>
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const pricing = calculatePixTicketPrice(pendingGames.length);
+                              setProvisionalPixModalData({
+                                amount: pricing.finalPrice,
+                                originalAmount: pricing.originalPrice,
+                                discountPercent: pricing.discountPercent,
+                                ticketCount: pendingGames.length,
+                                reservedNumbers: pendingGames.map(g => g.numbers)
+                              });
+                            }}
+                            className="bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-slate-950 text-xs font-black px-4 py-2 rounded-xl uppercase tracking-wider transition-all shadow cursor-pointer"
+                          >
+                            Pagar PIX Agora
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const sampleBatchId = pendingGames.find(g => g.batchId)?.batchId;
+                              handleCancelReservation(sampleBatchId);
+                            }}
+                            className="bg-slate-900/80 hover:bg-red-950/60 text-red-400 hover:text-red-300 border border-red-900/60 text-xs font-bold px-3 py-2 rounded-xl uppercase tracking-wider transition cursor-pointer"
+                          >
+                            Cancelar Reserva
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Confirmed Tickets Card */}
+                    {confirmedItems.length > 0 && (
+                      <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-5 shadow-lg space-y-3">
+                        <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
+                          <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold uppercase tracking-wider">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span>Bilhetes Confirmados / Pagos ({confirmedItems.length})</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-800">
+                            Ativos para Sorteio
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {confirmedItems.map((item, idx) => (
+                            <span
+                              key={`${item.gameId}-${idx}`}
+                              title={item.dateStr ? `Comprado em ${item.dateStr}` : undefined}
+                              className={`font-mono font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center border transition-transform hover:scale-105 ${
+                                item.isFourDigit 
+                                  ? 'px-3.5 py-1.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-sm border-amber-300'
+                                  : 'px-3 py-1 bg-yellow-400 text-slate-950 text-xs border-yellow-300'
+                              }`}
+                            >
+                              {item.isFourDigit ? `Nº ${item.numStr}` : item.numStr}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Provisional Tickets Card */}
+                    {pendingItems.length > 0 && (
+                      <div className="bg-slate-900/90 border border-amber-500/40 rounded-2xl p-5 shadow-lg space-y-3">
+                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                          <div className="flex items-center gap-2 text-amber-300 text-xs font-bold uppercase tracking-wider">
+                            <Clock className="w-4 h-4 text-yellow-400 shrink-0" />
+                            <span>Reservas Provisórias Pendentes ({pendingItems.length})</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-amber-300 bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-800">
+                            Aguardando Pagamento
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {pendingItems.map((item, idx) => (
+                            <span
+                              key={`${item.gameId}-${idx}`}
+                              title="Reserva Provisória: Aguardando confirmação do pagamento via PIX"
+                              className="px-3.5 py-1.5 bg-amber-500/20 border border-amber-400/60 text-yellow-300 font-mono text-sm font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center"
+                            >
+                              {item.isFourDigit ? `Nº ${item.numStr}` : item.numStr}
+                              <span className="ml-1 text-[9px] text-amber-300/80 font-sans font-bold uppercase">(Pendente)</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1269,9 +1244,9 @@ export default function Home() {
                       
                       <div className="bg-slate-50/80 px-5 py-4 border-t border-slate-100 flex justify-between items-center transition relative z-10">
                         <div className="text-sm flex flex-col">
-                          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">Prêmio Acumulado</span>
-                          <span className="font-bold text-emerald-600 font-mono text-base">
-                            R$ {(match.poolTotal * 0.9).toFixed(2)}
+                          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">Partida</span>
+                          <span className="font-bold text-emerald-700 text-sm">
+                            {match.phase || (match.isPromotional ? 'Jogo Promocional' : 'Bolão Oficial')}
                           </span>
                         </div>
                         
@@ -1456,6 +1431,44 @@ export default function Home() {
 
 
 
+
+        <AnimatePresence>
+          {provisionalPixModalData && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md overflow-y-auto">
+              <div className="absolute inset-0" onClick={() => setProvisionalPixModalData(null)} />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-lg z-10 my-8"
+              >
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setProvisionalPixModalData(null)}
+                    className="absolute -top-3 -right-3 z-30 bg-slate-800 hover:bg-slate-700 text-white rounded-full p-2 shadow-lg border border-slate-700 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  <PixPaymentCard
+                    amount={provisionalPixModalData.amount}
+                    originalAmount={provisionalPixModalData.originalAmount}
+                    discountPercent={provisionalPixModalData.discountPercent}
+                    ticketCount={provisionalPixModalData.ticketCount}
+                    reservedNumbers={provisionalPixModalData.reservedNumbers}
+                    onConfirmPayment={() => {
+                      setProvisionalPixModalData(null);
+                      showToast('Pagamento informado! Aguardando confirmação do PIX.', 'success');
+                    }}
+                    onCancel={() => setProvisionalPixModalData(null)}
+                    onClose={() => setProvisionalPixModalData(null)}
+                    isDepositMode={false}
+                  />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {showPixBoughtModal && recentBoughtTickets.length > 0 && (

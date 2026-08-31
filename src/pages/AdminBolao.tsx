@@ -505,60 +505,22 @@ export default function AdminBolao() {
       if (match.isPromotional) {
         const userBetsForMatch = userBets.filter(b => b.matchId === match.id);
         if (userBetsForMatch.length >= 2) {
-          showNotification('O usuário já atingiu o limite de 2 apostas para este jogo.', 'error');
+          showNotification('O usuário já atingiu o limite de 2 palpites para este jogo.', 'error');
           setPlacingAdminBet(false);
           return;
         }
       }
 
-      const pendingBets = userBets.filter(b => b.matchId === match.id && b.status === 'pending');
-      
-      let betAmount = 5;
-      if (match.isPromotional) {
-        betAmount = 2;
-      }
-      
-      const actualBalance = liveUser.balance || 0;
-      const hasBalance = actualBalance >= betAmount;
-      
-      if (!hasBalance && pendingBets.length >= 2) {
-        showNotification('O usuário já atingiu o limite de 2 apostas pendentes por falta de saldo neste jogo.', 'error');
-        setPlacingAdminBet(false);
-        return;
-      }
-
       await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', liveUser.id);
         const matchRef = doc(db, 'matches', match.id);
-        
-        const userDoc = await transaction.get(userRef);
         const matchDoc = await transaction.get(matchRef);
         
-        if (!userDoc.exists() || !matchDoc.exists()) throw new Error('Documento não encontrado.');
+        if (!matchDoc.exists()) throw new Error('Partida não encontrada.');
         
         if (matchDoc.data().status !== 'open') {
-          throw new Error('Apostas encerradas para esta partida.');
+          throw new Error('Palpites encerrados para esta partida.');
         }
 
-        const currentBalance = userDoc.data().balance || 0;
-        const canPay = currentBalance >= betAmount;
-
-        if (canPay) {
-          transaction.update(userRef, { balance: currentBalance - betAmount });
-          
-          const transRef = doc(collection(db, 'transactions'));
-          transaction.set(transRef, {
-            userId: liveUser.id,
-            type: 'bet',
-            amount: betAmount,
-            status: 'confirmed',
-            timestamp: serverTimestamp()
-          });
-
-          const poolAddition = match.isPromotional ? betAmount * 0.5 : betAmount;
-          transaction.update(matchRef, { poolTotal: (matchDoc.data().poolTotal || 0) + poolAddition });
-        }
-        
         const betRef = doc(collection(db, 'bets'));
         transaction.set(betRef, {
           userId: liveUser.id,
@@ -566,9 +528,9 @@ export default function AdminBolao() {
           matchId: match.id,
           predicted1: p1,
           predicted2: p2,
-          amount: betAmount,
-          status: canPay ? 'confirmed' : 'pending',
-          paid: canPay,
+          amount: 0,
+          status: 'confirmed',
+          paid: true,
           createdAt: serverTimestamp()
         });
       });
@@ -577,9 +539,9 @@ export default function AdminBolao() {
       setAdminBetMatchId('');
       setAdminBetP1('');
       setAdminBetP2('');
-      showNotification('Aposta registrada com sucesso!');
+      showNotification('Palpite registrado com sucesso!');
     } catch (err: any) {
-      showNotification(err.message || 'Erro ao registrar aposta.', 'error');
+      showNotification(err.message || 'Erro ao registrar palpite.', 'error');
     } finally {
       setPlacingAdminBet(false);
     }
@@ -731,7 +693,7 @@ export default function AdminBolao() {
           <div>
             <h2 className="font-display font-bold mb-6 text-slate-800 text-lg uppercase tracking-wider flex items-center gap-2">
               <Check className="w-5 h-5 text-indigo-600" />
-              Aposta Manual para Usuário
+              Palpite Manual para Usuário
             </h2>
             <div className="space-y-4 relative z-10">
               <div className="space-y-1.5">
@@ -743,7 +705,7 @@ export default function AdminBolao() {
                 >
                   <option value="">Selecione um usuário...</option>
                   {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} (R$ {u.balance?.toFixed(2) || '0.00'})</option>
+                    <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </select>
               </div>
@@ -785,7 +747,7 @@ export default function AdminBolao() {
                 disabled={placingAdminBet || !adminBetUserId || !adminBetMatchId || adminBetP1 === '' || adminBetP2 === ''}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-3.5 transition-all disabled:opacity-50 text-sm uppercase tracking-wider cursor-pointer"
               >
-                {placingAdminBet ? 'Processando...' : 'Registrar Aposta & Debitar'}
+                {placingAdminBet ? 'Processando...' : 'Registrar Palpite'}
               </button>
             </div>
           </div>

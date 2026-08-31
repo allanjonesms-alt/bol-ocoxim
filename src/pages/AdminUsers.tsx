@@ -187,59 +187,20 @@ export default function AdminUsers() {
       if (match.isPromotional) {
         const userBetsForMatch = selectedUserBets.filter(b => b.matchId === match.id);
         if (userBetsForMatch.length >= 2) {
-          showNotification('O usuário já atingiu o limite de 2 apostas para este jogo.', 'error');
+          showNotification('O usuário já atingiu o limite de 2 palpites para este jogo.', 'error');
           setPlacingAdminBet(false);
           return;
         }
       }
 
-      const pendingBets = selectedUserBets.filter(b => b.matchId === match.id && b.status === 'pending');
-      
-      let betAmount = 5;
-      if (match.isPromotional) {
-        betAmount = 2;
-      }
-      
-      const liveUser = users.find(u => u.id === userId);
-      const actualBalance = liveUser?.balance || 0;
-      const hasBalance = actualBalance >= betAmount;
-      
-      if (!hasBalance && pendingBets.length >= 2) {
-        showNotification('O usuário já atingiu o limite de 2 apostas pendentes por falta de saldo neste jogo.', 'error');
-        setPlacingAdminBet(false);
-        return;
-      }
-
       await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
         const matchRef = doc(db, 'matches', match.id);
-        
-        const userDoc = await transaction.get(userRef);
         const matchDoc = await transaction.get(matchRef);
         
-        if (!userDoc.exists() || !matchDoc.exists()) throw new Error('Documento não encontrado.');
+        if (!matchDoc.exists()) throw new Error('Documento não encontrado.');
         
         if (matchDoc.data().status !== 'open') {
-          throw new Error('Apostas encerradas para esta partida.');
-        }
-
-        const currentBalance = userDoc.data().balance || 0;
-        const canPay = currentBalance >= betAmount;
-
-        if (canPay) {
-          transaction.update(userRef, { balance: currentBalance - betAmount });
-          
-          const transRef = doc(collection(db, 'transactions'));
-          transaction.set(transRef, {
-            userId: userId,
-            type: 'bet',
-            amount: betAmount,
-            status: 'confirmed',
-            timestamp: serverTimestamp()
-          });
-
-          const poolAddition = match.isPromotional ? betAmount * 0.5 : betAmount;
-          transaction.update(matchRef, { poolTotal: (matchDoc.data().poolTotal || 0) + poolAddition });
+          throw new Error('Palpites encerrados para esta partida.');
         }
         
         const betRef = doc(collection(db, 'bets'));
@@ -249,9 +210,9 @@ export default function AdminUsers() {
           matchId: match.id,
           predicted1: p1,
           predicted2: p2,
-          amount: betAmount,
-          status: canPay ? 'confirmed' : 'pending',
-          paid: canPay,
+          amount: 0,
+          status: 'confirmed',
+          paid: true,
           createdAt: serverTimestamp()
         });
       });
@@ -259,13 +220,14 @@ export default function AdminUsers() {
       setAdminBetMatchId('');
       setAdminBetP1('');
       setAdminBetP2('');
-      showNotification('Aposta registrada com sucesso!');
+      showNotification('Palpite registrado com sucesso!');
       
+      const liveUser = users.find(u => u.id === userId);
       if (liveUser) {
           handleOpenUserModal(liveUser);
       }
     } catch (err: any) {
-      showNotification(err.message || 'Erro ao registrar aposta.', 'error');
+      showNotification(err.message || 'Erro ao registrar palpite.', 'error');
     } finally {
       setPlacingAdminBet(false);
     }
@@ -602,11 +564,11 @@ export default function AdminUsers() {
                   </div>
                 </div>
 
-                {/* Nova Aposta (Admin) */}
+                {/* Novo Palpite (Admin) */}
                 <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
                   <h4 className="font-display font-bold text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-wider text-sm">
                     <Check className="w-4 h-4 text-emerald-600" />
-                    <span>Fazer Aposta Manual</span>
+                    <span>Registrar Palpite Manual</span>
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-6">
@@ -648,27 +610,27 @@ export default function AdminUsers() {
                         disabled={placingAdminBet || !adminBetMatchId || adminBetP1 === '' || adminBetP2 === ''}
                         className="w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
                       >
-                        {placingAdminBet ? '...' : 'Apostar'}
+                        {placingAdminBet ? '...' : 'Salvar'}
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Relatório de Apostas do Usuário */}
+                {/* Relatório de Palpites do Usuário */}
                 <div className="pt-6 border-t border-slate-200">
                   <h4 className="font-display font-bold text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-wider text-sm">
                     <Clock className="w-4 h-4 text-emerald-600" />
-                    <span>Histórico de Apostas do Usuário</span>
+                    <span>Histórico de Palpites do Usuário</span>
                   </h4>
                   
                   {loadingBets ? (
                     <div className="text-center py-10 bg-slate-50 border border-slate-200 rounded-2xl">
                       <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                      <p className="text-sm font-medium text-slate-500">Carregando apostas...</p>
+                      <p className="text-sm font-medium text-slate-500">Carregando palpites...</p>
                     </div>
                   ) : selectedUserBets.length === 0 ? (
                     <div className="text-center py-12 bg-slate-50 border border-slate-200 border-dashed rounded-2xl">
-                      <p className="text-sm font-medium text-slate-500">Nenhuma aposta registrada.</p>
+                      <p className="text-sm font-medium text-slate-500">Nenhum palpite registrado.</p>
                     </div>
                   ) : (
                     <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
@@ -726,9 +688,8 @@ export default function AdminUsers() {
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-4 text-xs font-medium text-slate-500">
-                                <span>Apostado: <span className="font-mono bg-slate-100 px-1 py-0.5 rounded">{formatDateTime(bet.createdAt)}</span></span>
+                                <span>Registrado: <span className="font-mono bg-slate-100 px-1 py-0.5 rounded">{formatDateTime(bet.createdAt)}</span></span>
                                 <div>Status: <span className={`font-bold ${bet.status === 'confirmed' ? 'text-emerald-600' : 'text-amber-600'}`}>{bet.status.toUpperCase()}</span></div>
-                                <div>Pagamento: <span className={`font-bold ${bet.paid ? 'text-emerald-600' : 'text-slate-400'}`}>{bet.paid ? 'PAGO' : 'PENDENTE'}</span></div>
                               </div>
                             </div>
                             <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap min-w-[200px] justify-start sm:justify-end">
@@ -741,11 +702,6 @@ export default function AdminUsers() {
                                   <span className={`inline-block px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${pointsClass}`}>
                                     {pointsLabel}
                                   </span>
-                                  {bet.is_winner && bet.prize_collected && (
-                                    <div className="mt-1 font-mono text-xs font-bold text-emerald-700">
-                                      + R$ {bet.prize_collected.toFixed(2)}
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>

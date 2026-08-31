@@ -5,15 +5,32 @@ import { generatePixPayload, generatePixQRCodeDataUrl } from '../utils/pix';
 interface PixPaymentCardProps {
   amount: number;
   pixKey?: string;
-  onConfirmPayment: () => void;
-  onCancel: () => void;
+  onConfirmPayment?: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
+  title?: string;
+  subtitle?: string;
+  discountPercent?: number;
+  originalAmount?: number;
+  ticketCount?: number;
+  reservedNumbers?: (number[] | number)[];
+  confirmButtonLabel?: string;
+  isDepositMode?: boolean;
 }
 
 export const PixPaymentCard: React.FC<PixPaymentCardProps> = ({
   amount,
   pixKey = 'ecbf2588-9b0b-48e7-bc17-57f66ca2dbff',
   onConfirmPayment,
-  onCancel
+  onCancel,
+  onClose,
+  title,
+  subtitle,
+  discountPercent,
+  originalAmount,
+  ticketCount,
+  reservedNumbers,
+  confirmButtonLabel = 'EFETUEI O PAGAMENTO'
 }) => {
   const [copiedPix, setCopiedPix] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -51,16 +68,68 @@ export const PixPaymentCard: React.FC<PixPaymentCardProps> = ({
   };
 
   return (
-    <div className="mt-auto flex flex-col items-center bg-white p-5 rounded-2xl border border-emerald-100 relative animate-fade-in shadow-sm w-full">
-      {/* Header Badge */}
-      <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl px-4 py-2 mb-4 w-full flex items-center justify-between">
+    <div className="mt-auto flex flex-col items-center bg-white p-5 rounded-2xl border border-emerald-100 relative animate-fade-in shadow-sm w-full text-slate-800">
+      {/* Title & Subtitle */}
+      {title && (
+        <div className="text-center mb-3">
+          <h4 className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">
+            {title}
+          </h4>
+          {subtitle && (
+            <p className="text-xs text-slate-500 mt-1 font-medium leading-relaxed">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Reserved Numbers Preview */}
+      {reservedNumbers && reservedNumbers.length > 0 && (
+        <div className="w-full mb-3 p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl text-left">
+          <div className="flex items-center justify-between text-[11px] font-bold text-amber-900 uppercase tracking-wider mb-2">
+            <span>Números Reservados Provisoriamente:</span>
+            <span>{reservedNumbers.length} {reservedNumbers.length === 1 ? 'bilhete' : 'bilhetes'}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+            {reservedNumbers.map((num, idx) => {
+              const isArray = Array.isArray(num);
+              const label = isArray ? (num as number[]).map(n => String(n).padStart(2, '0')).join(' - ') : String(num).padStart(4, '0');
+              return (
+                <span
+                  key={idx}
+                  className="px-2.5 py-1 bg-amber-100/80 border border-amber-300 text-amber-950 font-mono text-xs font-bold rounded-lg shadow-2xs"
+                >
+                  {label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Header Badge with Discount */}
+      <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl px-4 py-2.5 mb-4 w-full flex items-center justify-between">
         <span className="text-xs font-medium text-emerald-800 flex items-center gap-1.5">
           <Sparkles className="w-4 h-4 text-emerald-600" />
-          Valor do Depósito:
+          {ticketCount ? `Total a Pagar (${ticketCount} bilhetes):` : 'Valor a Pagar (PIX):'}
         </span>
-        <span className="text-lg font-mono font-extrabold text-emerald-700">
-          R$ {amount.toFixed(2).replace('.', ',')}
-        </span>
+        <div className="text-right">
+          <div className="flex items-baseline justify-end gap-1.5">
+            <span className="text-lg font-mono font-extrabold text-emerald-700">
+              R$ {amount.toFixed(2).replace('.', ',')}
+            </span>
+            {originalAmount && originalAmount > amount && (
+              <span className="text-xs font-mono text-slate-400 line-through">
+                R$ {originalAmount.toFixed(2).replace('.', ',')}
+              </span>
+            )}
+          </div>
+          {discountPercent && discountPercent > 0 ? (
+            <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block">
+              {discountPercent}% de Desconto Aplicado!
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {/* QR Code Container */}
@@ -117,18 +186,32 @@ export const PixPaymentCard: React.FC<PixPaymentCardProps> = ({
 
       {/* Action Buttons */}
       <button
-        onClick={onConfirmPayment}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold rounded-xl py-3 px-4 transition-all text-sm uppercase tracking-wide shadow-md shadow-emerald-600/20 mb-2 cursor-pointer flex items-center justify-center gap-2"
+        onClick={() => {
+          if (onConfirmPayment) {
+            onConfirmPayment();
+          } else if (onClose) {
+            onClose();
+          } else if (onCancel) {
+            onCancel();
+          }
+        }}
+        className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold rounded-xl py-3.5 px-4 transition-all text-sm uppercase tracking-wide shadow-md shadow-emerald-600/20 mb-2 cursor-pointer flex items-center justify-center gap-2"
       >
         <Check className="w-4 h-4" />
-        EFETUEI O PAGAMENTO
+        {confirmButtonLabel}
       </button>
 
       <button
-        onClick={onCancel}
+        onClick={() => {
+          if (onCancel) {
+            onCancel();
+          } else if (onClose) {
+            onClose();
+          }
+        }}
         className="text-xs font-bold text-slate-400 hover:text-slate-600 py-1 uppercase tracking-wider cursor-pointer transition-colors"
       >
-        Cancelar
+        Fechar
       </button>
     </div>
   );
