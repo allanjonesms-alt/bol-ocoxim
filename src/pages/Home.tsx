@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, doc, getDocs, where, runTransaction, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Match, Bet, UserProfile, PixPremiadoDraw, PixPremiadoGame } from '../types';
-import { Trophy, CalendarClock, ChevronRight, CheckCircle2, Lock, Radio, Flame, Crown, Calendar, Lightbulb, AlertCircle, Download, FileText, Medal, CircleDollarSign, X, AlertTriangle, Clock, Sparkles, Ticket } from 'lucide-react';
+import { Trophy, CalendarClock, ChevronRight, CheckCircle2, Lock, Radio, Flame, Crown, Calendar, Lightbulb, AlertCircle, Download, FileText, Medal, CircleDollarSign, X, AlertTriangle, Clock, Sparkles, Ticket, ShieldCheck, ExternalLink, Printer } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import MatchCountdown from '../components/MatchCountdown';
@@ -539,13 +539,23 @@ export default function Home() {
                 <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0 animate-pulse">Disponível</span>
               </h2>
             </div>
-            <Link
-              to="/panel"
-              className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-4 py-2 rounded-xl border border-amber-300 transition-all flex items-center gap-1.5 self-start sm:self-center"
-            >
-              <Trophy className="w-3.5 h-3.5 text-amber-600" />
-              <span>Meus Bilhetes</span>
-            </Link>
+            <div className="flex items-center gap-2 self-start sm:self-center">
+              <Link
+                to="/transparencia-sorteio"
+                className="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-emerald-600 transition-all flex items-center gap-1.5 shadow-xs"
+                title="Visualizar relatório com todos os bilhetes emitidos em ordem crescente e e-mails protegidos"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Transparência do Sorteio</span>
+              </Link>
+              <Link
+                to="/panel"
+                className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-3.5 py-2 rounded-xl border border-amber-300 transition-all flex items-center gap-1.5"
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-600" />
+                <span>Meus Bilhetes</span>
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
@@ -744,13 +754,22 @@ export default function Home() {
                 Prepare-se para o PIX PREMIADO! Fique atento ao lançamento de novos sorteios!
               </p>
             </div>
-            <Link
-              to="/panel"
-              className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-5 py-2.5 rounded-xl border border-amber-300 transition-all flex items-center gap-1.5 self-start sm:self-center whitespace-nowrap"
-            >
-              <Trophy className="w-3.5 h-3.5 text-amber-600" />
-              <span>Meus Bilhetes</span>
-            </Link>
+            <div className="flex items-center gap-2 self-start sm:self-center">
+              <Link
+                to="/transparencia-sorteio"
+                className="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-emerald-600 transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Transparência do Sorteio</span>
+              </Link>
+              <Link
+                to="/panel"
+                className="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-4 py-2.5 rounded-xl border border-amber-300 transition-all flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-600" />
+                <span>Meus Bilhetes</span>
+              </Link>
+            </div>
           </div>
         </div>
       )}
@@ -945,6 +964,61 @@ export default function Home() {
           )}
         </div>
       )}
+
+      {/* Card de Transparência e Autenticidade dos Sorteios */}
+      <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 text-white rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl border border-emerald-500/30 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-[90px] pointer-events-none"></div>
+
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black uppercase tracking-wider">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Auditoria Pública e Imparcial</span>
+            </div>
+            
+            <h2 className="text-xl sm:text-2xl font-display font-black text-white leading-tight">
+              Transparência e Autenticidade no Sorteio
+            </h2>
+
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              Consulte a listagem oficial de todos os bilhetes emitidos em <strong className="text-emerald-400 font-bold">ordem numérica crescente (0000 a 9999)</strong>. O relatório exibe o e-mail do apostador com mascaramento imparcial para assegurar sua total privacidade, acompanhado da data e horário exatos da compra para conferência pública.
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1 text-[11px] font-bold">
+              <span className="bg-slate-800/80 border border-slate-700 text-slate-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                Ordem Numérica Crescente
+              </span>
+              <span className="bg-slate-800/80 border border-slate-700 text-slate-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                E-mail Mascarado (Privacidade)
+              </span>
+              <span className="bg-slate-800/80 border border-slate-700 text-slate-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                Data e Horário da Compra
+              </span>
+              <span className="bg-slate-800/80 border border-slate-700 text-slate-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                Pronto para Imprimir (A4)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+            <Link
+              to="/transparencia-sorteio"
+              className="inline-flex items-center justify-center gap-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-sm px-6 py-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-950/40 cursor-pointer text-center"
+            >
+              <FileText className="w-4 h-4 text-slate-950" />
+              <span>Visualizar e Imprimir Relatório</span>
+              <ChevronRight className="w-4 h-4 text-slate-950" />
+            </Link>
+            <p className="text-[11px] text-slate-400 text-center font-medium">
+              Disponível para qualquer participante ou visitante.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {matches.length === 0 ? (
         !user && (

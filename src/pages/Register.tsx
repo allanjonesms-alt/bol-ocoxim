@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import { isAdminEmail } from '../lib/utils';
@@ -53,20 +53,33 @@ export default function Register() {
       const nextId = await getNextAvailableNumericId();
       const displayId = nextId.toString().padStart(3, '0');
       
-      // Create user document
+      // Create user document, handling potential concurrent profile creation in AuthProvider
       try {
         const userRef = doc(db, 'users', userCredential.user.uid);
-        await setDoc(userRef, {
-          name,
-          email,
-          phone,
-          pix_key: '',
-          balance: 0,
-          role: userRole,
-          createdAt: serverTimestamp(),
-          numericId: nextId,
-          displayId: displayId,
-        });
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          // Profile was already initialized by AuthProvider's listener fallback,
+          // simply update the custom user fields (name and phone) to match form input.
+          await updateDoc(userRef, {
+            name,
+            phone,
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // Profile does not exist yet, create it fully.
+          await setDoc(userRef, {
+            name,
+            email,
+            phone,
+            pix_key: '',
+            balance: 0,
+            role: userRole,
+            createdAt: serverTimestamp(),
+            numericId: nextId,
+            displayId: displayId,
+          });
+        }
       } catch (dbError) {
         handleFirestoreError(dbError, OperationType.CREATE, 'users');
       }

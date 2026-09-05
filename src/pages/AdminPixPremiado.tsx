@@ -3,8 +3,9 @@ import { collection, onSnapshot, doc, runTransaction, serverTimestamp, getDocs, 
 import { db } from '../lib/firebase';
 import { UserProfile, PixPremiadoGame, PixPremiadoDraw } from '../types';
 import { ArrowLeft, Check, X, Sparkles, RefreshCw, Trophy, Trash2, ShieldCheck, Dices, Coins, AlertCircle, CalendarDays, Plus, Edit2, Search, Ticket, FileText, CheckCircle2, ChevronDown } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
+import FederalDrawSimulator from '../components/FederalDrawSimulator';
 
 // Mathematical rules supplied by the user
 function chave(quadra: number[]) {
@@ -56,6 +57,23 @@ function gerarJogo(): number[] {
 }
 
 export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomponent?: boolean }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'simulator' | 'management'>(
+    urlTab === 'management' ? 'management' : 'simulator'
+  );
+
+  useEffect(() => {
+    if (urlTab === 'simulator' || urlTab === 'management') {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab]);
+
+  const handleTabChange = (tab: 'simulator' | 'management') => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [games, setGames] = useState<PixPremiadoGame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -841,13 +859,13 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
 
       const prizesRaw = [p1, p2, p3, p4, p5];
 
-      if (prizesRaw.some(p => !p || p.length < 1 || isNaN(Number(p)))) {
-        showToast('Por favor, preencha os 5 prêmios da Loteria Federal (números de até 5 dígitos cada).', 'error');
+      if (prizesRaw.some(p => !p || p.length < 4 || isNaN(Number(p)))) {
+        showToast('Por favor, preencha os 5 prêmios da Loteria Federal (números de 4 a 6 dígitos cada).', 'error');
         return;
       }
 
-      // Format all 5 prizes as 5-digit strings padded with leading zeros
-      const prizes = prizesRaw.map(p => p.padStart(5, '0'));
+      // Format prizes with leading zero padding up to at least 5 digits if shorter
+      const prizes = prizesRaw.map(p => (p.length < 5 ? p.padStart(5, '0') : p));
 
       let winners: PixPremiadoGame[] = [];
       let reason = '';
@@ -856,7 +874,7 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
 
       // STEP 1: Check milhar (last 4 digits) from 1st to 5th prize
       for (let i = 0; i < 5; i++) {
-        const milharStr = prizes[i].slice(1); // last 4 digits
+        const milharStr = prizes[i].slice(-4); // last 4 digits
         const milharNum = parseInt(milharStr, 10);
         const matches = federalGames.filter(g => Array.isArray(g.numbers) && g.numbers[0] === milharNum);
 
@@ -888,7 +906,7 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
 
       // STEP 3: Closest number to 1st Prize Milhar + Tie breaker by earliest purchase time
       if (winners.length === 0) {
-        const initialTargetStr = prizes[0].slice(1); // last 4 digits of 1st Prize
+        const initialTargetStr = prizes[0].slice(-4); // last 4 digits of 1st Prize
         const initialTargetNum = parseInt(initialTargetStr, 10);
         targetMilhar = initialTargetStr;
 
@@ -1076,7 +1094,50 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
         </button>
       </div>
 
-      
+      {/* Top Tab Navigation: Simulator vs Management */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => handleTabChange('simulator')}
+            className={`py-2.5 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'simulator'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/40'
+            }`}
+          >
+            <Trophy className="w-4 h-4 text-amber-500" />
+            <span>Simulador & Conferência da Federal</span>
+            <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+              Oficial
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('management')}
+            className={`py-2.5 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'management'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/40'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4 text-indigo-600" />
+            <span>Gestão de Sorteios & Bilhetes</span>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'simulator' ? (
+        <FederalDrawSimulator 
+          games={games} 
+          users={users} 
+          activeDraw={draws.find(d => d.status === 'active')} 
+          db={db} 
+          onShowToast={showToast} 
+        />
+      ) : (
+        <>
       {/* Gerenciamento de Sorteios */}
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
         <div className="flex justify-between items-center mb-6">
@@ -1506,15 +1567,25 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
 
                 {draws.find(d => d.status === 'active')?.type === 'Loteria Federal' ? (
                   <div className="space-y-2.5 bg-amber-50/30 p-3.5 rounded-2xl border border-amber-200/80">
-                    <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Informe o resultado de cada prêmio (5 dígitos):
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                        Informe o resultado de cada prêmio (5 a 6 dígitos):
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('simulator')}
+                        className="text-[10px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Trophy className="w-3 h-3 text-amber-600" />
+                        Abrir Simulador Completo
+                      </button>
+                    </div>
                     {[
-                      { label: '1º PRÊMIO', index: 0, placeholder: 'Ex: 52345' },
-                      { label: '2º PRÊMIO', index: 1, placeholder: 'Ex: 18762' },
-                      { label: '3º PRÊMIO', index: 2, placeholder: 'Ex: 34981' },
-                      { label: '4º PRÊMIO', index: 3, placeholder: 'Ex: 09123' },
-                      { label: '5º PRÊMIO', index: 4, placeholder: 'Ex: 76540' },
+                      { label: '1º PRÊMIO', index: 0, placeholder: 'Ex: 008932' },
+                      { label: '2º PRÊMIO', index: 1, placeholder: 'Ex: 049314' },
+                      { label: '3º PRÊMIO', index: 2, placeholder: 'Ex: 017181' },
+                      { label: '4º PRÊMIO', index: 3, placeholder: 'Ex: 010373' },
+                      { label: '5º PRÊMIO', index: 4, placeholder: 'Ex: 047859' },
                     ].map((prizeItem) => (
                       <div key={prizeItem.index} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-amber-200/80 shadow-xs">
                         <span className="text-[11px] font-extrabold text-amber-900 w-20 shrink-0 uppercase font-mono">
@@ -1522,7 +1593,7 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                         </span>
                         <input 
                           type="text"
-                          maxLength={5}
+                          maxLength={6}
                           value={drawnNumbers[prizeItem.index] || ''}
                           onChange={(e) => {
                             const cleaned = e.target.value.replace(/[^0-9]/g, '');
@@ -1533,9 +1604,9 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
                           placeholder={prizeItem.placeholder}
                           className="w-full text-center py-1.5 bg-amber-50/30 border border-amber-200 rounded-lg font-mono font-bold text-base focus:ring-2 focus:ring-amber-500/25 outline-none text-slate-900 tracking-widest placeholder:text-amber-300"
                         />
-                        {drawnNumbers[prizeItem.index]?.length === 5 && (
+                        {drawnNumbers[prizeItem.index]?.length >= 4 && (
                           <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 shrink-0 font-mono">
-                            Milhar: {drawnNumbers[prizeItem.index].slice(1)}
+                            Milhar: {drawnNumbers[prizeItem.index].slice(-4)}
                           </span>
                         )}
                       </div>
@@ -1842,6 +1913,8 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Custom Confirmation Modals to avoid window.confirm issues in Iframe */}
       {showPoolConfirm && (

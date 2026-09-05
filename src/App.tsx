@@ -19,6 +19,7 @@ import AdminPixPremiado from './pages/AdminPixPremiado';
 import AdminSorteios from './pages/AdminSorteios';
 import AdminBolao from './pages/AdminBolao';
 import AdminWebhookLogs from './pages/AdminWebhookLogs';
+import TransparencyReport from './pages/TransparencyReport';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, profile, loading } = useAuth();
@@ -47,6 +48,8 @@ export default function App() {
             <Route path="user-panel" element={<ProtectedRoute><UserPanel /></ProtectedRoute>} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="regulamento" element={<Regulations />} />
+            <Route path="transparencia-sorteio" element={<TransparencyReport />} />
+            <Route path="relatorio-transparencia" element={<TransparencyReport />} />
             <Route path="admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
             <Route path="admin/users" element={<ProtectedRoute adminOnly><AdminUsers /></ProtectedRoute>} />
             <Route path="admin/logs" element={<ProtectedRoute adminOnly><AdminLogs /></ProtectedRoute>} />

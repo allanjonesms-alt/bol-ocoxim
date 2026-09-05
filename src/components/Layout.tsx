@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { LogOut, User, Menu, Trophy, Home, BookOpen, Bell, CheckCircle2, X } from 'lucide-react';
+import { LogOut, User, Menu, Trophy, Home, BookOpen, Bell, CheckCircle2, X, ShieldCheck, FileText } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
@@ -120,6 +120,9 @@ export default function Layout() {
                 <Link to="/" className="text-emerald-100 hover:text-yellow-400 transition" title="Início">
                   <Home className="h-5 w-5" />
                 </Link>
+                <Link to="/transparencia-sorteio" className="text-emerald-100 hover:text-yellow-400 transition" title="Transparência e Autenticidade do Sorteio">
+                  <ShieldCheck className="h-5 w-5 text-emerald-300 hover:text-yellow-400" />
+                </Link>
                 <Link to="/regulamento" className="text-emerald-100 hover:text-yellow-400 transition" title="Regulamento">
                   <BookOpen className="h-5 w-5" />
                 </Link>
@@ -165,6 +168,10 @@ export default function Layout() {
                 <Link to="/" className="text-emerald-100 hover:text-yellow-400 font-medium text-sm hidden md:block transition">
                   Início
                 </Link>
+                <Link to="/transparencia-sorteio" className="text-emerald-100 hover:text-yellow-400 font-medium text-sm hidden md:flex items-center gap-1 transition" title="Relatório Público de Bilhetes Emitidos">
+                  <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                  Transparência
+                </Link>
                 <Link to="/leaderboard" className="text-emerald-100 hover:text-yellow-400 font-medium text-sm hidden md:block transition">
                   Classificação Geral
                 </Link>
@@ -192,6 +199,10 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col items-center space-y-4">
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-emerald-200/85 font-medium">
             <Link to="/" className="hover:text-yellow-400 transition">Início</Link>
+            <Link to="/transparencia-sorteio" className="hover:text-yellow-400 transition flex items-center gap-1 text-emerald-300 font-semibold">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              Transparência do Sorteio
+            </Link>
             <Link to="/regulamento" className="hover:text-yellow-400 transition">Regulamento</Link>
             <Link to="/leaderboard" className="hover:text-yellow-400 transition">Classificação Geral</Link>
             <Link to="/panel" className="hover:text-yellow-400 transition">Minhas Apostas</Link>
