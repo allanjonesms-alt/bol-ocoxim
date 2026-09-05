@@ -102,35 +102,51 @@ export default function TransparencyReport() {
     return draws.find(d => d.id === selectedDrawId) || draws.find(d => d.status === 'active') || draws[0];
   }, [draws, selectedDrawId]);
 
-  // Filter only real confirmed federal tickets and sort in ascending numerical order
+  // Extract ALL sold tickets and sort in ascending numerical order
   const reportItems: ReportItem[] = useMemo(() => {
-    const federalConfirmed = games.filter(g => {
-      const isSingleNum = Array.isArray(g.numbers) && g.numbers.length === 1 && typeof g.numbers[0] === 'number';
-      const isFed = g.drawType === 'Loteria Federal' || !g.drawType;
-      const isConfirmed = g.status === 'confirmed' || g.paid === true;
-      return isSingleNum && isFed && isConfirmed;
-    });
+    const mapped: ReportItem[] = [];
 
-    const mapped: ReportItem[] = federalConfirmed.map(g => {
-      const num = g.numbers[0];
+    games.forEach(g => {
+      // Exclude only explicitly cancelled or refunded tickets
+      if (g.status === 'cancelled' || (g.status as string) === 'refunded') {
+        return;
+      }
+
+      // Extract numbers: can be single or multiple in an array or direct number
+      let rawNumbers: any[] = [];
+      if (Array.isArray(g.numbers) && g.numbers.length > 0) {
+        rawNumbers = g.numbers;
+      } else if ((g as any).number !== undefined && (g as any).number !== null) {
+        rawNumbers = [(g as any).number];
+      } else if ((g as any).ticketNumber !== undefined && (g as any).ticketNumber !== null) {
+        rawNumbers = [(g as any).ticketNumber];
+      } else if ((g as any).numbers !== undefined && (g as any).numbers !== null) {
+        rawNumbers = [(g as any).numbers];
+      }
+
       const user = users[g.userId];
       const userEmail = user?.email;
       const userName = g.userName || user?.name;
       const maskedEmail = maskEmail(userEmail, userName);
       const { dateStr, timeStr, timestampMs } = parseGameTimestamp(g.createdAt);
 
-      return {
-        ticketNumber: num,
-        ticketNumberStr: formatTicketNumber(num),
-        gameId: g.id,
-        maskedEmail,
-        userName,
-        dateStr,
-        timeStr,
-        timestampMs,
-        batchId: g.batchId,
-        price: g.price
-      };
+      rawNumbers.forEach((rawNum, idx) => {
+        const num = typeof rawNum === 'number' ? rawNum : parseInt(String(rawNum).trim(), 10);
+        if (isNaN(num)) return;
+
+        mapped.push({
+          ticketNumber: num,
+          ticketNumberStr: formatTicketNumber(num),
+          gameId: g.id ? `${g.id}${rawNumbers.length > 1 ? `-${idx + 1}` : ''}` : `TKT-${num}`,
+          maskedEmail,
+          userName,
+          dateStr,
+          timeStr,
+          timestampMs: timestampMs || 0,
+          batchId: g.batchId,
+          price: g.price
+        });
+      });
     });
 
     // Sort strictly in ASCENDING NUMERICAL ORDER of the ticket
@@ -138,7 +154,6 @@ export default function TransparencyReport() {
       if (a.ticketNumber !== b.ticketNumber) {
         return a.ticketNumber - b.ticketNumber;
       }
-      // If same number (unlikely in unique pools), sort by earliest purchase time
       return a.timestampMs - b.timestampMs;
     });
 
@@ -159,14 +174,14 @@ export default function TransparencyReport() {
     });
   }, [reportItems, searchFilter]);
 
-  // Generate an integrity verification hash based on tickets count and IDs
+  // Generate an integrity verification hash without exposing total count
   const integrityHash = useMemo(() => {
-    if (reportItems.length === 0) return 'SHA-EMPTY-0000';
+    if (reportItems.length === 0) return 'PUB-VAL-0000';
     let sum = 0;
     reportItems.forEach((it, idx) => {
-      sum = (sum + it.ticketNumber * (idx + 1) + it.timestampMs % 1000) % 999999;
+      sum = (sum + it.ticketNumber * (idx + 1) + (it.timestampMs % 1000)) % 999999;
     });
-    return `FED-PUB-${reportItems.length}-${String(sum).padStart(6, '0')}`;
+    return `PUB-VAL-${String(sum).padStart(6, '0')}`;
   }, [reportItems]);
 
   const handlePrint = () => {
@@ -243,12 +258,8 @@ export default function TransparencyReport() {
                 <span>Documento Oficial de Auditoria e Transparência Pública</span>
               </div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-display">
-                Relação Oficial de Bilhetes Confirmados
+                Relação Oficial de Bilhetes Concorrendo
               </h1>
-              <p className="text-slate-600 text-xs sm:text-sm max-w-3xl leading-relaxed">
-                Listagem nominal e temporal de bilhetes reais adquiridos pelos participantes, disposta em <strong>rigorosa ordem numérica crescente</strong>.
-                Os e-mails dos compradores são mascarados de forma imparcial para proteger a privacidade dos titulares, garantindo autenticidade, integridade e fé pública antes e após a extração da <strong>Loteria Federal</strong>.
-              </p>
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-right shrink-0 print:border-slate-400">
@@ -263,7 +274,7 @@ export default function TransparencyReport() {
           </div>
 
           {/* Sorteio Reference Metadata */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Modalidade</div>
               <div className="text-sm font-extrabold text-slate-900">Loteria Federal</div>
@@ -276,16 +287,12 @@ export default function TransparencyReport() {
               </div>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total de Bilhetes Confirmados</div>
-              <div className="text-sm font-extrabold text-emerald-700">
-                {reportItems.length} bilhete(s)
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 col-span-2 sm:col-span-1">
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Situação</div>
+              <div className="text-sm font-extrabold text-emerald-700 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                <span>Bilhetes Concorrendo</span>
               </div>
-            </div>
-
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Critério de Ordenação</div>
-              <div className="text-sm font-extrabold text-indigo-900">Ordem Numérica Crescente</div>
             </div>
           </div>
         </div>
@@ -312,12 +319,11 @@ export default function TransparencyReport() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <span>Exibindo:</span>
-            <span className="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded-md border border-slate-200">
-              {filteredItems.length} de {reportItems.length} bilhetes
-            </span>
-          </div>
+          {searchFilter && (
+            <div className="text-xs font-semibold text-slate-500">
+              Filtrando por: <span className="text-slate-800 font-bold">"{searchFilter}"</span>
+            </div>
+          )}
         </div>
 
         {/* Content Table / Report Data */}
@@ -329,9 +335,9 @@ export default function TransparencyReport() {
         ) : reportItems.length === 0 ? (
           <div className="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-8 space-y-3">
             <Ticket className="w-10 h-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-700">Nenhum bilhete confirmado encontrado</h3>
+            <h3 className="text-base font-bold text-slate-700">Nenhum bilhete concorrendo encontrado</h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Assim que os apostadores adquirirem e confirmarem seus bilhetes para a Loteria Federal, eles serão autenticados e listados aqui automaticamente em ordem crescente.
+              Assim que os apostadores adquirirem seus bilhetes para o sorteio, eles serão autenticados e listados aqui automaticamente.
             </p>
           </div>
         ) : filteredItems.length === 0 ? (
@@ -342,7 +348,7 @@ export default function TransparencyReport() {
               onClick={() => setSearchFilter('')}
               className="mt-2 text-xs font-bold text-emerald-600 hover:underline cursor-pointer"
             >
-              Exibir todos os {reportItems.length} bilhetes
+              Exibir todos os bilhetes
             </button>
           </div>
         ) : (
@@ -350,7 +356,6 @@ export default function TransparencyReport() {
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
                 <tr className="bg-slate-100/80 print:bg-slate-200 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                  <th className="py-3 px-3 sm:px-4 w-16 text-center">Ordem</th>
                   <th className="py-3 px-3 sm:px-4 text-center">Nº do Bilhete</th>
                   <th className="py-3 px-3 sm:px-4">Comprador (E-mail Imparcial)</th>
                   <th className="py-3 px-3 sm:px-4 text-center">Data da Compra</th>
@@ -365,11 +370,6 @@ export default function TransparencyReport() {
                     key={item.gameId || index} 
                     className="hover:bg-amber-50/40 transition-colors print:break-inside-avoid"
                   >
-                    {/* Index Sequence */}
-                    <td className="py-2.5 px-3 sm:px-4 text-center font-mono text-[11px] text-slate-400 font-medium">
-                      {index + 1}º
-                    </td>
-
                     {/* Ticket Number in Large Monospace */}
                     <td className="py-2.5 px-3 sm:px-4 text-center">
                       <span className="inline-block font-mono font-black text-sm sm:text-base text-slate-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs tracking-wider print:border-slate-300 print:bg-transparent">

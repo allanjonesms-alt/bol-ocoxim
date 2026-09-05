@@ -168,9 +168,9 @@ export default function Layout() {
                 <Link to="/" className="text-emerald-100 hover:text-yellow-400 font-medium text-sm hidden md:block transition">
                   Início
                 </Link>
-                <Link to="/transparencia-sorteio" className="text-emerald-100 hover:text-yellow-400 font-medium text-sm hidden md:flex items-center gap-1 transition" title="Relatório Público de Bilhetes Emitidos">
+                <Link to="/transparencia-sorteio" className="text-emerald-100 hover:text-yellow-400 font-medium text-sm hidden md:flex items-center gap-1 transition" title="Relatório Público de Bilhetes Concorrendo">
                   <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                  Transparência
+                  Bilhetes Concorrendo
                 </Link>
                 <Link to="/leaderboard" className="text-emerald-100 hover:text-yellow-400 font-medium text-sm hidden md:block transition">
                   Classificação Geral
@@ -201,7 +201,7 @@ export default function Layout() {
             <Link to="/" className="hover:text-yellow-400 transition">Início</Link>
             <Link to="/transparencia-sorteio" className="hover:text-yellow-400 transition flex items-center gap-1 text-emerald-300 font-semibold">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              Transparência do Sorteio
+              Bilhetes Concorrendo
             </Link>
             <Link to="/regulamento" className="hover:text-yellow-400 transition">Regulamento</Link>
             <Link to="/leaderboard" className="hover:text-yellow-400 transition">Classificação Geral</Link>

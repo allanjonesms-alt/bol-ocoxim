@@ -7,6 +7,7 @@ import { Trophy, CalendarClock, ChevronRight, CheckCircle2, Lock, Radio, Flame, 
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import MatchCountdown from '../components/MatchCountdown';
+import DrawCountdownBanner from '../components/DrawCountdownBanner';
 import PixPaymentCard from '../components/PixPaymentCard';
 import { generateMatchBetsPDF } from '../utils/pdfGenerator';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
@@ -525,10 +526,20 @@ export default function Home() {
 
       {/* Vencedores Section (ocultada conforme solicitação) */}
 
+      {/* Banner de Contagem Regressiva para o Sorteio */}
+      <DrawCountdownBanner
+        draw={activePixDraws[0]}
+        onScrollToBuy={() => {
+          const el = document.getElementById('pix-premiado-section');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+      />
 
       {/* Sessão PIX PREMIADO */}
       {activePixDraws.length > 0 ? (
-        <div className="bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white text-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-md relative overflow-hidden border-2 border-amber-300">
+        <div id="pix-premiado-section" className="bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white text-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-md relative overflow-hidden border-2 border-amber-300">
           <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full blur-[70px] pointer-events-none"></div>
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
@@ -543,10 +554,10 @@ export default function Home() {
               <Link
                 to="/transparencia-sorteio"
                 className="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-emerald-600 transition-all flex items-center gap-1.5 shadow-xs"
-                title="Visualizar relatório com todos os bilhetes emitidos em ordem crescente e e-mails protegidos"
+                title="Visualizar bilhetes concorrendo ao sorteio"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Transparência do Sorteio</span>
+                <span>Bilhetes Concorrendo</span>
               </Link>
               <Link
                 to="/panel"
@@ -595,7 +606,7 @@ export default function Home() {
                         <div>
                           <span className="block text-[10px] text-slate-400 font-bold uppercase">Horário do Sorteio</span>
                           <span className="font-semibold text-slate-800">
-                            {draw.time || '-'}
+                            {draw.date === '2026-09-06' ? '10:00 (-4h UTC)' : (draw.time || '-')}
                           </span>
                         </div>
                       </div>
@@ -760,7 +771,7 @@ export default function Home() {
                 className="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-emerald-600 transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Transparência do Sorteio</span>
+                <span>Bilhetes Concorrendo</span>
               </Link>
               <Link
                 to="/panel"
@@ -977,18 +988,14 @@ export default function Home() {
             </div>
             
             <h2 className="text-xl sm:text-2xl font-display font-black text-white leading-tight">
-              Transparência e Autenticidade no Sorteio
+              Bilhetes Concorrendo no Sorteio
             </h2>
 
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Consulte a listagem oficial de todos os bilhetes emitidos em <strong className="text-emerald-400 font-bold">ordem numérica crescente (0000 a 9999)</strong>. O relatório exibe o e-mail do apostador com mascaramento imparcial para assegurar sua total privacidade, acompanhado da data e horário exatos da compra para conferência pública.
+              Consulte a listagem oficial de todos os bilhetes participantes. O relatório exibe o e-mail do apostador com mascaramento imparcial para assegurar sua total privacidade, acompanhado da data e horário exatos da compra para conferência pública.
             </p>
 
             <div className="flex flex-wrap gap-2 pt-1 text-[11px] font-bold">
-              <span className="bg-slate-800/80 border border-slate-700 text-slate-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                Ordem Numérica Crescente
-              </span>
               <span className="bg-slate-800/80 border border-slate-700 text-slate-200 px-3 py-1 rounded-lg flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 E-mail Mascarado (Privacidade)
@@ -1009,8 +1016,8 @@ export default function Home() {
               to="/transparencia-sorteio"
               className="inline-flex items-center justify-center gap-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-sm px-6 py-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-950/40 cursor-pointer text-center"
             >
-              <FileText className="w-4 h-4 text-slate-950" />
-              <span>Visualizar e Imprimir Relatório</span>
+              <Ticket className="w-4 h-4 text-slate-950" />
+              <span>Bilhetes Concorrendo</span>
               <ChevronRight className="w-4 h-4 text-slate-950" />
             </Link>
             <p className="text-[11px] text-slate-400 text-center font-medium">
