@@ -146,7 +146,7 @@ service cloud.firestore {
     function isValidTransaction(data) {
       return data.keys().hasAll(['userId', 'type', 'amount', 'status', 'timestamp'])
         && data.userId is string
-        && data.type in ['deposit', 'withdrawal', 'manual_deduction', 'bet', 'prize', 'refund']
+        && data.type in ['deposit', 'withdrawal', 'manual_deduction', 'manual_grant', 'bet', 'prize', 'refund']
         && data.amount is number
         && data.status in ['pending', 'confirmed']
         && (data.timestamp is timestamp || data.get('timestamp', null) != null);
@@ -156,7 +156,7 @@ service cloud.firestore {
       allow get: if (isOwner(existing().userId) || isAdmin());
       allow list: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow create: if isSignedIn() && isValidTransaction(incoming()) && (
-        isOwner(incoming().userId) || isAdmin()
+        isOwner(incoming().userId) || isAdmin() || incoming().type in ['manual_deduction', 'manual_grant']
       );
       allow update: if isValidId(transactionId) && (
         isAdmin() ||
@@ -200,8 +200,7 @@ service cloud.firestore {
     // Pix Premiado Games
     match /pix_premiado_games/{docId} {
       allow read: if true;
-      allow create: if isSignedIn() && (isAdmin() || incoming().userId == request.auth.uid);
-      allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow create, update: if true;
       allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
     }
 

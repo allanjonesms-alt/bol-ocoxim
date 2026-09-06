@@ -11,6 +11,7 @@ import { calculatePixTicketPrice } from '../utils/pixPricing';
 import { generatePixPayload } from '../utils/pix';
 import { buyOrReservePixTickets, reconcilePendingProvisionalTickets, cancelUserProvisionalReservation } from '../utils/provisionalTicketManager';
 import PixPaymentCard from '../components/PixPaymentCard';
+import ContemplatedDrawCard from '../components/ContemplatedDrawCard';
 
 export default function UserPanel() {
   const { user, profile } = useAuth();
@@ -117,9 +118,16 @@ export default function UserPanel() {
       setRaffleGames(raffleData);
     });
 
-    const qPix = query(collection(db, 'pix_premiado_draws'), where('status', '==', 'active'));
+    const qPix = collection(db, 'pix_premiado_draws');
     const unsubPixDraws = onSnapshot(qPix, (snapshot) => {
       const draws = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PixPremiadoDraw));
+      draws.sort((a, b) => {
+        if (a.winningTicket && !b.winningTicket) return -1;
+        if (!a.winningTicket && b.winningTicket) return 1;
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        return 0;
+      });
       setActivePixDraws(draws);
     });
 
@@ -478,8 +486,18 @@ export default function UserPanel() {
             </div>
           )}
 
+          {/* Card do Número Contemplado Oficial se já houver apuração */}
+          {activePixDraws.length > 0 && activePixDraws[0]?.winningTicket && (
+            <div className="mb-8">
+              <ContemplatedDrawCard 
+                draw={activePixDraws[0]} 
+                userGames={raffleGames} 
+              />
+            </div>
+          )}
+
           {/* Seção para Compra Rápida se houver sorteio ativo */}
-          {activePixDraws.length > 0 && (
+          {activePixDraws.length > 0 && !activePixDraws[0]?.winningTicket && (
             <div className="mb-8 bg-slate-900/80 text-white rounded-2xl p-5 border border-indigo-500/30 relative overflow-hidden shadow-inner z-10">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.15),transparent_50%)] pointer-events-none"></div>
               
@@ -761,23 +779,43 @@ export default function UserPanel() {
                             numStr: g.numbers.length === 1 ? String(num).padStart(4, '0') : String(num).padStart(2, '0'),
                             isFourDigit: g.numbers.length === 1,
                             isPending: g.status === 'pending' || g.paid === false
-                          }))).sort((a, b) => a.numVal - b.numVal).map((item, idx) => (
-                            <span
-                              key={`${item.gameId}-${idx}`}
-                              className={`font-mono font-black rounded-xl tracking-wider shadow-sm flex items-center justify-center border transition-transform hover:scale-105 ${
-                                item.isPending
-                                  ? 'px-3.5 py-1.5 bg-amber-500/20 text-yellow-300 border-amber-400/50 text-sm'
-                                  : item.isFourDigit 
-                                  ? 'px-3.5 py-1.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-sm border-amber-300'
-                                  : 'px-3 py-1 bg-yellow-400 text-slate-950 text-xs border-yellow-300'
-                              }`}
-                            >
-                              {item.isFourDigit ? `Nº ${item.numStr}` : item.numStr}
-                              {item.isPending && (
-                                <span className="ml-1 text-[8px] font-sans text-amber-300/80 font-bold uppercase">(Pendente)</span>
-                              )}
-                            </span>
-                          ))}
+                          }))).sort((a, b) => a.numVal - b.numVal).map((item, idx) => {
+                            const isContemplated = Boolean(
+                              activePixDraws[0]?.winningTicket && (
+                                item.numStr === String(activePixDraws[0].winningTicket).padStart(4, '0') ||
+                                item.numVal === parseInt(String(activePixDraws[0].winningTicket), 10)
+                              )
+                            );
+
+                            return (
+                              <span
+                                key={`${item.gameId}-${idx}`}
+                                className={`font-mono font-black rounded-xl tracking-wider flex items-center justify-center border transition-transform hover:scale-105 ${
+                                  isContemplated
+                                    ? 'px-4 py-2 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 text-slate-950 text-sm border-2 border-yellow-200 ring-4 ring-yellow-400/50 shadow-xl animate-pulse'
+                                    : item.isPending
+                                    ? 'px-3.5 py-1.5 bg-amber-500/20 text-yellow-300 border-amber-400/50 text-sm shadow-sm'
+                                    : item.isFourDigit 
+                                    ? 'px-3.5 py-1.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-sm border-amber-300 shadow-sm'
+                                    : 'px-3 py-1 bg-yellow-400 text-slate-950 text-xs border-yellow-300 shadow-sm'
+                                }`}
+                              >
+                                {isContemplated ? (
+                                  <span className="flex items-center gap-1.5">
+                                    <Trophy className="w-4 h-4 text-slate-950" />
+                                    <span>Nº {item.numStr} (CONTEMPLADO!)</span>
+                                  </span>
+                                ) : (
+                                  <>
+                                    {item.isFourDigit ? `Nº ${item.numStr}` : item.numStr}
+                                    {item.isPending && (
+                                      <span className="ml-1 text-[8px] font-sans text-amber-300/80 font-bold uppercase">(Pendente)</span>
+                                    )}
+                                  </>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}

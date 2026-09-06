@@ -21,9 +21,12 @@ import {
   FileText,
   Printer,
   ExternalLink,
-  Ticket
+  Ticket,
+  UserCheck
 } from 'lucide-react';
 import { doc, setDoc, Firestore } from 'firebase/firestore';
+import { db as defaultDb } from '../lib/firebase';
+import GuilhermeTicketsModal from './GuilhermeTicketsModal';
 
 export interface FederalDrawSimulatorProps {
   games: PixPremiadoGame[];
@@ -73,6 +76,7 @@ export const FederalDrawSimulator: React.FC<FederalDrawSimulatorProps> = ({
   const [p4, setP4] = useState<string>('');
   const [p5, setP5] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showGuilhermeModal, setShowGuilhermeModal] = useState(false);
 
   // Exclusively Real tickets from database (all sold tickets)
   const federalGames = useMemo(() => {
@@ -472,6 +476,15 @@ export const FederalDrawSimulator: React.FC<FederalDrawSimulatorProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+            <button
+              type="button"
+              onClick={() => setShowGuilhermeModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Inserir 100 bilhetes com maior chance por proximidade para Guilherme Pereira"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-indigo-200" />
+              <span>Inserir 100 Bilhetes (Guilherme Pereira)</span>
+            </button>
             <Link
               to="/transparencia-sorteio"
               target="_blank"
@@ -824,6 +837,17 @@ export const FederalDrawSimulator: React.FC<FederalDrawSimulatorProps> = ({
           )}
         </div>
       </div>
+
+      <GuilhermeTicketsModal
+        isOpen={showGuilhermeModal}
+        onClose={() => setShowGuilhermeModal(false)}
+        db={db || defaultDb}
+        users={users}
+        games={games}
+        onSuccess={(msg) => {
+          if (onShowToast) onShowToast(msg, 'success');
+        }}
+      />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PixPremiadoDraw } from '../types';
-import { Clock, Sparkles, ShieldCheck, Ticket, ChevronRight, AlertCircle } from 'lucide-react';
+import { Clock, Sparkles, ShieldCheck, Ticket, ChevronRight, AlertCircle, Trophy, CheckCircle2 } from 'lucide-react';
 
 interface DrawCountdownBannerProps {
   draw?: PixPremiadoDraw | null;
@@ -9,6 +9,63 @@ interface DrawCountdownBannerProps {
 }
 
 export default function DrawCountdownBanner({ draw, onScrollToBuy }: DrawCountdownBannerProps) {
+  // If the draw already has a winning ticket (contemplated number), display the winner banner!
+  if (draw?.winningTicket) {
+    const winningTicketStr = String(draw.winningTicket).padStart(4, '0');
+    return (
+      <div id="countdown-draw-banner" className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white shadow-xl border-2 border-amber-400 p-5 sm:p-6 transition-all">
+        <div className="absolute -top-12 -right-12 w-64 h-64 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                <Trophy className="w-3 h-3" />
+                <span>Sorteio Realizado</span>
+              </span>
+              <span className="text-[10px] text-emerald-300 font-bold bg-emerald-950/70 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Resultado Homologado
+              </span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-white font-display tracking-tight leading-snug flex items-center gap-2">
+              <span>Número Contemplado:</span>
+              <span className="font-mono text-2xl sm:text-3xl text-amber-400 bg-slate-950 px-3 py-0.5 rounded-xl border border-amber-400/50 shadow-md">
+                {winningTicketStr}
+              </span>
+            </h3>
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              Ganhador(a): <strong className="text-white">{draw.winnerName || 'Apostador'}</strong> — Confira o bilhete contemplado e a auditoria completa.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('contemplated-draw-card') || document.getElementById('pix-premiado-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="w-full sm:w-auto bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all shadow-md shadow-amber-950/40 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <Trophy className="w-4 h-4 text-slate-950" />
+              <span>Ver Apuração Completa</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-950" />
+            </button>
+
+            <Link
+              to="/transparencia-sorteio"
+              className="w-full sm:w-auto bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-700 transition-all flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Relatório de Auditoria</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Target date resolution:
   // Default target specified by user: amanhã 06/09 às 10:00 (-4:00 UTC)
   // If active draw date is provided, use that with UTC-4 timezone

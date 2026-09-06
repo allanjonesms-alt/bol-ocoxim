@@ -2,10 +2,11 @@ import { useState, useEffect, FormEvent } from 'react';
 import { collection, onSnapshot, doc, runTransaction, serverTimestamp, getDocs, deleteDoc, writeBatch, query, where, limit, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, PixPremiadoGame, PixPremiadoDraw } from '../types';
-import { ArrowLeft, Check, X, Sparkles, RefreshCw, Trophy, Trash2, ShieldCheck, Dices, Coins, AlertCircle, CalendarDays, Plus, Edit2, Search, Ticket, FileText, CheckCircle2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Check, X, Sparkles, RefreshCw, Trophy, Trash2, ShieldCheck, Dices, Coins, AlertCircle, CalendarDays, Plus, Edit2, Search, Ticket, FileText, CheckCircle2, ChevronDown, UserCheck } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
 import FederalDrawSimulator from '../components/FederalDrawSimulator';
+import GuilhermeTicketsModal from '../components/GuilhermeTicketsModal';
 
 // Mathematical rules supplied by the user
 function chave(quadra: number[]) {
@@ -100,6 +101,7 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
   // Pool Type Selection & Search state
   const [selectedPoolType, setSelectedPoolType] = useState<'megasena' | 'federal'>('megasena');
   const [federalSearch, setFederalSearch] = useState('');
+  const [showGuilhermeModal, setShowGuilhermeModal] = useState(false);
 
   // Form State for buying tickets from pool
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -1525,7 +1527,17 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
               )}
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowGuilhermeModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl py-3 px-5 transition-all text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-xs"
+                title="Inserir 100 bilhetes com maior probabilidade por proximidade para Guilherme Pereira"
+              >
+                <UserCheck className="w-4 h-4 text-indigo-200" />
+                Inserir 100 Bilhetes de Maior Chance (Guilherme Pereira)
+              </button>
+
               <button
                 type="button"
                 onClick={() => setShowResetFederalConfirm(true)}
@@ -1826,6 +1838,31 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
             </button>
           </div>
         </form>
+
+        {/* Quick batch option for Guilherme Pereira */}
+        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+              <UserCheck className="w-4 h-4" />
+            </span>
+            <div>
+              <p className="text-xs font-bold text-slate-800">
+                Atribuição de Lote Estratégico (Guilherme Pereira)
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Inserir os 100 números calculados nos maiores intervalos de proximidade da Loteria Federal como vendidos.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowGuilhermeModal(true)}
+            className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Inserir 100 Bilhetes</span>
+          </button>
+        </div>
       </div>
 
       {/* List of Registered Tickets */}
@@ -2101,6 +2138,16 @@ export default function AdminPixPremiado({ isSubcomponent = false }: { isSubcomp
           </div>
         </div>
       )}
+
+      {/* Modal to insert the 100 optimal tickets for Guilherme Pereira */}
+      <GuilhermeTicketsModal
+        isOpen={showGuilhermeModal}
+        onClose={() => setShowGuilhermeModal(false)}
+        db={db}
+        users={users}
+        games={games}
+        onSuccess={(msg) => showToast(msg, 'success')}
+      />
     </div>
   );
 }

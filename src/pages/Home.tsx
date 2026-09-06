@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import MatchCountdown from '../components/MatchCountdown';
 import DrawCountdownBanner from '../components/DrawCountdownBanner';
+import ContemplatedDrawCard from '../components/ContemplatedDrawCard';
 import PixPaymentCard from '../components/PixPaymentCard';
 import { generateMatchBetsPDF } from '../utils/pdfGenerator';
 import { fetchAvailableFederalNumbers } from '../utils/loteriaFederal';
@@ -38,9 +39,16 @@ export default function Home() {
   } | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'pix_premiado_draws'), where('status', '==', 'active'));
+    const q = collection(db, 'pix_premiado_draws');
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const draws = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PixPremiadoDraw));
+      draws.sort((a, b) => {
+        if (a.winningTicket && !b.winningTicket) return -1;
+        if (!a.winningTicket && b.winningTicket) return 1;
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        return 0;
+      });
       setActivePixDraws(draws);
     });
     return () => unsubscribe();
@@ -537,6 +545,14 @@ export default function Home() {
         }}
       />
 
+      {/* Card do Número Contemplado Oficial se já houver sorteio apurado */}
+      {activePixDraws.length > 0 && activePixDraws[0]?.winningTicket && (
+        <ContemplatedDrawCard 
+          draw={activePixDraws[0]} 
+          userGames={userRaffleGames} 
+        />
+      )}
+
       {/* Sessão PIX PREMIADO */}
       {activePixDraws.length > 0 ? (
         <div id="pix-premiado-section" className="bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-white text-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-md relative overflow-hidden border-2 border-amber-300">
@@ -546,8 +562,16 @@ export default function Home() {
             <div>
               <h2 className="text-xl sm:text-2xl font-display font-black text-amber-900 flex items-center gap-2.5">
                 <Sparkles className="w-6 h-6 text-amber-500 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
-                <span>PIX PREMIADO ATIVO</span>
-                <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0 animate-pulse">Disponível</span>
+                <span>{activePixDraws[0]?.winningTicket ? 'PIX PREMIADO • SORTEIO REALIZADO' : 'PIX PREMIADO ATIVO'}</span>
+                {activePixDraws[0]?.winningTicket ? (
+                  <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0">
+                    Sorteio Homologado
+                  </span>
+                ) : (
+                  <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0 animate-pulse">
+                    Disponível
+                  </span>
+                )}
               </h2>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-center">

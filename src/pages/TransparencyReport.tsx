@@ -289,12 +289,58 @@ export default function TransparencyReport() {
 
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 col-span-2 sm:col-span-1">
               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Situação</div>
-              <div className="text-sm font-extrabold text-emerald-700 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                <span>Bilhetes Concorrendo</span>
-              </div>
+              {activeDraw?.winningTicket ? (
+                <div className="text-sm font-extrabold text-amber-700 flex items-center gap-1.5">
+                  <Trophy className="w-4 h-4 text-amber-600" />
+                  <span>Sorteio Homologado</span>
+                </div>
+              ) : (
+                <div className="text-sm font-extrabold text-emerald-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                  <span>Bilhetes Concorrendo</span>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Homologated Winning Ticket Banner if draw is completed */}
+          {activeDraw?.winningTicket && (
+            <div className="bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/5 border-2 border-amber-400 rounded-2xl p-4 sm:p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="bg-amber-400 text-slate-950 p-2.5 rounded-xl shadow-xs shrink-0">
+                    <Trophy className="w-6 h-6 text-slate-950" />
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">
+                      Resultado Homologado da Extração
+                    </span>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                      <span>Bilhete Contemplado:</span>
+                      <span className="font-mono text-xl sm:text-2xl text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-lg border border-amber-400 font-black">
+                        {String(activeDraw.winningTicket).padStart(4, '0')}
+                      </span>
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-amber-300 rounded-xl px-4 py-2 text-left sm:text-right shadow-2xs">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Ganhador(a) Oficial</div>
+                  <div className="text-sm font-black text-slate-900">{activeDraw.winnerName || 'Apostador'}</div>
+                  <div className="text-[10px] font-bold text-emerald-700">Prêmio: R$ 1.000,00</div>
+                </div>
+              </div>
+
+              {activeDraw.winningReason && (
+                <div className="text-xs text-slate-700 bg-white/90 border border-amber-200 rounded-xl p-3">
+                  <span className="font-extrabold text-amber-900 block mb-0.5 text-[10px] uppercase">
+                    Critério de Apuração da Loteria Federal:
+                  </span>
+                  {activeDraw.winningReason}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Search & Draw Selector (Hidden in Print) */}
@@ -365,51 +411,83 @@ export default function TransparencyReport() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 print:divide-slate-300">
-                {filteredItems.map((item, index) => (
-                  <tr 
-                    key={item.gameId || index} 
-                    className="hover:bg-amber-50/40 transition-colors print:break-inside-avoid"
-                  >
-                    {/* Ticket Number in Large Monospace */}
-                    <td className="py-2.5 px-3 sm:px-4 text-center">
-                      <span className="inline-block font-mono font-black text-sm sm:text-base text-slate-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs tracking-wider print:border-slate-300 print:bg-transparent">
-                        {item.ticketNumberStr}
-                      </span>
-                    </td>
+                {filteredItems.map((item, index) => {
+                  const isWinningRow = Boolean(
+                    activeDraw?.winningTicket && (
+                      item.ticketNumberStr === String(activeDraw.winningTicket).padStart(4, '0') ||
+                      item.ticketNumber === parseInt(String(activeDraw.winningTicket), 10)
+                    )
+                  );
 
-                    {/* Masked Email for Privacy */}
-                    <td className="py-2.5 px-3 sm:px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs sm:text-sm font-semibold text-slate-800">
-                          {item.maskedEmail}
+                  return (
+                    <tr 
+                      key={item.gameId || index} 
+                      className={`transition-colors print:break-inside-avoid ${
+                        isWinningRow 
+                          ? 'bg-amber-100/90 font-bold border-y-2 border-amber-400 shadow-xs' 
+                          : 'hover:bg-amber-50/40'
+                      }`}
+                    >
+                      {/* Ticket Number in Large Monospace */}
+                      <td className="py-2.5 px-3 sm:px-4 text-center">
+                        <span className={`inline-flex items-center gap-1.5 font-mono font-black text-sm sm:text-base px-2.5 py-1 rounded-lg tracking-wider print:border-slate-300 print:bg-transparent ${
+                          isWinningRow
+                            ? 'bg-amber-400 text-slate-950 border border-amber-500 shadow-md ring-2 ring-amber-400/50'
+                            : 'text-slate-900 bg-amber-50 border border-amber-200 shadow-2xs'
+                        }`}>
+                          {isWinningRow && <Trophy className="w-3.5 h-3.5 text-slate-950" />}
+                          <span>{item.ticketNumberStr}</span>
                         </span>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Purchase Date */}
-                    <td className="py-2.5 px-3 sm:px-4 text-center font-mono text-xs text-slate-600 font-medium">
-                      {item.dateStr}
-                    </td>
+                      {/* Masked Email for Privacy */}
+                      <td className="py-2.5 px-3 sm:px-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-mono text-xs sm:text-sm ${
+                            isWinningRow ? 'font-extrabold text-slate-950' : 'font-semibold text-slate-800'
+                          }`}>
+                            {item.maskedEmail}
+                          </span>
+                          {isWinningRow && (
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded border border-amber-300">
+                              Ganhador
+                            </span>
+                          )}
+                        </div>
+                      </td>
 
-                    {/* Purchase Exact Time with seconds */}
-                    <td className="py-2.5 px-3 sm:px-4 text-center font-mono text-xs text-slate-800 font-bold">
-                      {item.timeStr}
-                    </td>
+                      {/* Purchase Date */}
+                      <td className="py-2.5 px-3 sm:px-4 text-center font-mono text-xs text-slate-600 font-medium">
+                        {item.dateStr}
+                      </td>
 
-                    {/* Authentication Protocol (Hidden in compact print if needed) */}
-                    <td className="py-2.5 px-3 sm:px-4 text-center font-mono text-[11px] text-slate-400 print:hidden">
-                      {item.gameId ? `TKT-${item.gameId.slice(0, 8).toUpperCase()}` : '-'}
-                    </td>
+                      {/* Purchase Exact Time with seconds */}
+                      <td className="py-2.5 px-3 sm:px-4 text-center font-mono text-xs text-slate-800 font-bold">
+                        {item.timeStr}
+                      </td>
 
-                    {/* Status */}
-                    <td className="py-2.5 px-3 sm:px-4 text-center">
-                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider print:border-none print:text-black print:p-0">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600 print:hidden" />
-                        <span>Confirmado</span>
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      {/* Authentication Protocol (Hidden in compact print if needed) */}
+                      <td className="py-2.5 px-3 sm:px-4 text-center font-mono text-[11px] text-slate-400 print:hidden">
+                        {item.gameId ? `TKT-${item.gameId.slice(0, 8).toUpperCase()}` : '-'}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-2.5 px-3 sm:px-4 text-center">
+                        {isWinningRow ? (
+                          <span className="inline-flex items-center gap-1 bg-amber-400 text-slate-950 border border-amber-500 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-xs animate-pulse">
+                            <Trophy className="w-3 h-3 text-slate-950" />
+                            <span>Contemplado</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider print:border-none print:text-black print:p-0">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 print:hidden" />
+                            <span>Confirmado</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

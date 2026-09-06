@@ -92,6 +92,11 @@ export interface PixPremiadoDraw {
   drawnNumbers: string[];
   createdAt: any;
   observations?: string;
+  winningTicket?: string | null;
+  winnerName?: string | null;
+  winnerUserId?: string | null;
+  winningReason?: string | null;
+  finishedAt?: any;
 }
 
 export interface MinutoCertoDraw {
