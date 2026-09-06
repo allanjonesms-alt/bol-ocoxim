@@ -131,46 +131,8 @@ export default function Home() {
   };
 
   const handleBuyPixTickets = async () => {
-    if (!user || !profile) {
-      showToast('Por favor, faça login para comprar bilhetes!', 'error');
-      return;
-    }
-
-    const count = parseInt(pixTicketCount);
-    if (isNaN(count) || count <= 0) {
-      showToast('Por favor, insira uma quantidade de bilhetes válida.', 'error');
-      return;
-    }
-
-    const activeDraw = activePixDraws[0] || null;
-    setIsPurchasingPix(true);
-    try {
-      const result = await buyOrReservePixTickets(db, user, profile, count, activeDraw);
-
-      if (result.mode === 'confirmed') {
-        setRecentBoughtTickets(result.boughtNumbers);
-        setShowPixBoughtModal(true);
-        showToast(`${result.count} bilhete(s) comprado(s) com sucesso por R$ ${result.finalPrice.toFixed(2)}!`, 'success');
-        setPixTicketCount('1');
-      } else {
-        // Mode is provisional reservation
-        setProvisionalPixModalData({
-          amount: result.finalPrice,
-          originalAmount: result.originalPrice,
-          discountPercent: result.discountPercent,
-          ticketCount: result.count,
-          reservedNumbers: result.boughtNumbers,
-          batchId: result.batchId
-        });
-        showToast(`Reserva provisória de ${result.count} bilhete(s) realizada! Efetue o PIX para ativação automática.`, 'warning');
-        setPixTicketCount('1');
-      }
-    } catch (err: any) {
-      console.error(err);
-      showToast(err.message || 'Erro ao processar compra de bilhetes.', 'error');
-    } finally {
-      setIsPurchasingPix(false);
-    }
+    showToast('As vendas de bilhetes estão oficialmente encerradas.', 'warning');
+    return;
   };
 
   const handleCancelReservation = async (batchId?: string) => {
@@ -562,16 +524,10 @@ export default function Home() {
             <div>
               <h2 className="text-xl sm:text-2xl font-display font-black text-amber-900 flex items-center gap-2.5">
                 <Sparkles className="w-6 h-6 text-amber-500 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
-                <span>{activePixDraws[0]?.winningTicket ? 'PIX PREMIADO • SORTEIO REALIZADO' : 'PIX PREMIADO ATIVO'}</span>
-                {activePixDraws[0]?.winningTicket ? (
-                  <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0">
-                    Sorteio Homologado
-                  </span>
-                ) : (
-                  <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0 animate-pulse">
-                    Disponível
-                  </span>
-                )}
+                <span>{activePixDraws[0]?.winningTicket ? 'PIX PREMIADO • SORTEIO HOMOLOGADO' : 'PIX PREMIADO • VENDAS ENCERRADAS'}</span>
+                <span className="bg-slate-900 text-amber-400 border border-amber-400/40 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs shrink-0">
+                  Vendas Encerradas
+                </span>
               </h2>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-center">
@@ -596,177 +552,78 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
             {activePixDraws.map(draw => {
               return (
-                <div key={draw.id} className="lg:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-6 bg-white p-6 rounded-2xl border border-amber-200 shadow-sm">
+                <div key={draw.id} className="lg:col-span-12 bg-white p-6 sm:p-7 rounded-2xl border border-amber-200 shadow-sm">
                   
-                  {/* Detalhes do Sorteio */}
-                  <div className="md:col-span-3 lg:col-span-3 flex flex-col justify-between space-y-4">
-                    <div className="space-y-3">
+                  {/* Informações do Sorteio e Status de Vendas Encerradas */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                    <div className="md:col-span-7 space-y-4">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="bg-amber-100 text-amber-900 font-bold text-[11px] px-3 py-1 rounded-md border border-amber-300 uppercase tracking-wide">
+                        <span className="bg-amber-100 text-amber-900 font-black text-[11px] px-3 py-1 rounded-md border border-amber-300 uppercase tracking-wide">
                           {draw.type === 'Loteria Federal' ? '🎰 LOTERIA FEDERAL' : '🔮 MEGA-SENA'}
+                        </span>
+                        <span className="bg-slate-900 text-amber-300 border border-amber-400/30 font-extrabold text-[11px] px-3 py-1 rounded-md uppercase tracking-wide flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Vendas Encerradas</span>
                         </span>
                       </div>
 
                       {draw.observations && (
-                        <div className="bg-amber-50/80 border border-amber-200 p-3 rounded-xl text-slate-700 text-xs sm:text-sm font-medium italic whitespace-pre-wrap">
-                          <span className="text-amber-800 font-bold not-italic block mb-1">Prêmio e Observações:</span>
+                        <div className="bg-amber-50/90 border border-amber-200 p-4 rounded-2xl text-slate-800 text-xs sm:text-sm font-medium leading-relaxed">
+                          <span className="text-amber-900 font-black block mb-1 uppercase tracking-wider text-[11px]">Prêmio Oficial e Observações:</span>
                           {draw.observations}
                         </div>
                       )}
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-amber-100">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-                        <Calendar className="w-4.5 h-4.5 text-amber-600 shrink-0" />
-                        <div>
-                          <span className="block text-[10px] text-slate-400 font-bold uppercase">Data do Sorteio</span>
-                          <span className="font-semibold text-slate-800">
-                            {draw.date ? draw.date.split('-').reverse().join('/') : '-'}
-                          </span>
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-amber-100">
+                        <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-600">
+                          <Calendar className="w-5 h-5 text-amber-600 shrink-0" />
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">Data do Sorteio</span>
+                            <span className="font-bold text-slate-800">
+                              {draw.date ? draw.date.split('-').reverse().join('/') : '-'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-600">
+                          <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">Horário do Sorteio</span>
+                            <span className="font-bold text-slate-800">
+                              {draw.date === '2026-09-06' ? '10:00 (-4h UTC)' : (draw.time || '-')}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-                        <Clock className="w-4.5 h-4.5 text-amber-600 shrink-0" />
-                        <div>
-                          <span className="block text-[10px] text-slate-400 font-bold uppercase">Horário do Sorteio</span>
-                          <span className="font-semibold text-slate-800">
-                            {draw.date === '2026-09-06' ? '10:00 (-4h UTC)' : (draw.time || '-')}
-                          </span>
+                    </div>
+
+                    <div className="md:col-span-5 bg-gradient-to-br from-amber-500/10 via-yellow-400/10 to-amber-100/50 p-6 rounded-2xl border border-amber-300/80 flex flex-col justify-between space-y-5">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-amber-900 font-black text-sm uppercase tracking-wide">
+                          <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                          <span>Apuração Oficial</span>
                         </div>
+                        <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                          A venda e aquisição de bilhetes para este sorteio foram oficialmente <strong>encerradas</strong>. Todos os bilhetes concorrentes estão registrados e auditados na página de transparência.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2.5 pt-2">
+                        <Link
+                          to="/transparencia-sorteio"
+                          className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-black text-xs px-4 py-3 rounded-xl border border-emerald-600 transition-all flex items-center justify-center gap-2 shadow-xs"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                          <span>Consultar Bilhetes Concorrendo</span>
+                        </Link>
+                        <Link
+                          to="/panel"
+                          className="w-full bg-white hover:bg-amber-50 text-amber-950 font-black text-xs px-4 py-3 rounded-xl border border-amber-300 transition-all flex items-center justify-center gap-2 shadow-xs"
+                        >
+                          <Trophy className="w-4 h-4 text-amber-600" />
+                          <span>Conferir Meus Bilhetes</span>
+                        </Link>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Interface de Compra */}
-                  <div className="md:col-span-9 lg:col-span-9 bg-amber-50/40 p-5 rounded-xl border border-amber-200/80 flex flex-col justify-between space-y-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                          Escolha a Quantidade de Bilhetes
-                        </label>
-                        <span className="text-[11px] text-white font-black bg-red-600 border border-red-500 shadow-xs px-3 py-1 rounded-full uppercase tracking-wider animate-pulse">
-                          Até 30% OFF
-                        </span>
-                      </div>
-
-                      {/* Options Grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-                        {[
-                          { count: 1, isPopular: false },
-                          { count: 5, isPopular: false },
-                          { count: 10, isPopular: false },
-                          { count: 20, isPopular: false },
-                          { count: 50, isPopular: true },
-                          { count: 100, isPopular: false },
-                        ].map((opt) => {
-                          const pricing = calculatePixTicketPrice(opt.count);
-                          const isSelected = parseInt(pixTicketCount) === opt.count;
-
-                          return (
-                            <button
-                              key={opt.count}
-                              type="button"
-                              onClick={() => setPixTicketCount(String(opt.count))}
-                              className={`relative p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                                isSelected
-                                  ? 'bg-gradient-to-br from-amber-500/20 via-yellow-400/20 to-amber-50 border-amber-500 text-slate-900 ring-2 ring-amber-400/40 shadow-md scale-[1.02]'
-                                  : 'bg-white border-slate-200 hover:border-amber-300 text-slate-700 hover:bg-amber-50/50'
-                              }`}
-                            >
-                              {opt.isPopular && (
-                                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-md border border-yellow-300 whitespace-nowrap">
-                                  ⭐ MAIS ESCOLHIDO
-                                </span>
-                              )}
-                              
-                              <div className="flex justify-between items-center w-full mt-0.5">
-                                <span className="font-extrabold text-xs text-slate-900">
-                                  {opt.count} {opt.count === 1 ? 'Bilhete' : 'Bilhetes'}
-                                </span>
-                                {pricing.discountPercent > 0 && (
-                                  <span className="bg-red-600 text-white font-black text-[10px] px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider border border-red-400">
-                                    -{pricing.discountPercent}%
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="mt-2.5 flex items-baseline gap-1.5">
-                                <span className="font-mono font-black text-sm text-amber-700">
-                                  R$ {pricing.finalPrice.toFixed(2)}
-                                </span>
-                                {pricing.discountPercent > 0 && (
-                                  <span className="font-mono text-[10px] text-slate-400 line-through">
-                                    R$ {pricing.originalPrice.toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Custom Input */}
-                      <div className="relative mt-2">
-                        <input
-                          type="number"
-                          min="1"
-                          max="1000"
-                          value={pixTicketCount}
-                          onChange={(e) => setPixTicketCount(e.target.value)}
-                          className="w-full bg-white border border-slate-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl py-2 pl-3 pr-10 text-xs font-semibold text-slate-900 placeholder-slate-400 font-mono outline-none shadow-xs"
-                          placeholder="Outra quantidade personalizada..."
-                        />
-                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
-                          un
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 pt-2">
-                      {(() => {
-                        const currentCount = parseInt(pixTicketCount) || 0;
-                        const currentPricing = calculatePixTicketPrice(currentCount);
-
-                        return (
-                          <>
-                            <div className="bg-white p-3 rounded-xl border border-amber-200/80 space-y-1 shadow-xs">
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-600 font-bold uppercase">Total</span>
-                                <span className="text-amber-800 text-lg font-black font-mono">
-                                  R$ {currentPricing.finalPrice.toFixed(2)}
-                                </span>
-                              </div>
-                              {currentPricing.discountPercent > 0 && (
-                                <div className="flex justify-between items-center text-[11px] font-bold text-red-600 border-t border-amber-100 pt-1">
-                                  <span>Desconto ({currentPricing.discountPercent}%):</span>
-                                  <span>- R$ {(currentPricing.originalPrice - currentPricing.finalPrice).toFixed(2)}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={handleBuyPixTickets}
-                              disabled={isPurchasingPix || !currentCount}
-                              className="w-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-500 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xs uppercase tracking-wider py-3.5 px-4 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                              {isPurchasingPix ? (
-                                <>
-                                  <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
-                                  <span>Processando Compra...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CircleDollarSign className="w-4 h-4 shrink-0" />
-                                  <span>COMPRAR BILHETES AGORA</span>
-                                </>
-                              )}
-                            </button>
-                          </>
-                        );
-                      })()}
-                    </div>
-
                   </div>
 
                 </div>

@@ -152,7 +152,7 @@ export default function DrawCountdownBanner({ draw, onScrollToBuy }: DrawCountdo
           <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
             {timeLeft.isOngoing
               ? 'A apuração oficial está em andamento. Consulte a lista de bilhetes participantes e acompanhe o resultado.'
-              : 'Não deixe para a última hora, garanta seus bilhetes e participe!'}
+              : 'Vendas de bilhetes encerradas. Acompanhe a lista de bilhetes participantes e o resultado oficial da apuração.'}
           </p>
         </div>
 
@@ -220,24 +220,14 @@ export default function DrawCountdownBanner({ draw, onScrollToBuy }: DrawCountdo
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-col gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                if (onScrollToBuy) {
-                  onScrollToBuy();
-                } else {
-                  const el = document.getElementById('pix-premiado-section') || document.getElementById('pix-buy-card');
-                  if (el) {
-                    el.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }
-              }}
+            <Link
+              to="/panel"
               className="bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all shadow-md shadow-amber-950/40 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <Ticket className="w-4 h-4 text-slate-950" />
-              <span>Garantir Bilhete(s)</span>
+              <span>Meus Bilhetes</span>
               <ChevronRight className="w-3.5 h-3.5 text-slate-950" />
-            </button>
+            </Link>
 
             <Link
               to="/transparencia-sorteio"

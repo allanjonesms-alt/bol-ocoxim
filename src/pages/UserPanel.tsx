@@ -174,51 +174,9 @@ export default function UserPanel() {
   };
 
   const handleBuyPixTickets = async () => {
-    if (!user || !profile) {
-      setPixToast({ message: 'Por favor, faça login para comprar bilhetes!', type: 'error' });
-      setTimeout(() => setPixToast(null), 4000);
-      return;
-    }
-
-    const count = parseInt(pixTicketCount);
-    if (isNaN(count) || count <= 0) {
-      setPixToast({ message: 'Por favor, insira uma quantidade de bilhetes válida.', type: 'error' });
-      setTimeout(() => setPixToast(null), 4000);
-      return;
-    }
-
-    const activeDraw = activePixDraws[0] || null;
-    setIsPurchasingPix(true);
-    try {
-      const result = await buyOrReservePixTickets(db, user, profile, count, activeDraw);
-
-      if (result.mode === 'confirmed') {
-        setRecentBoughtTickets(result.boughtNumbers);
-        setShowPixBoughtModal(true);
-        setPixToast({ message: `${result.count} bilhete(s) comprado(s) com sucesso por R$ ${result.finalPrice.toFixed(2)}!`, type: 'success' });
-        setTimeout(() => setPixToast(null), 4000);
-        setPixTicketCount('1');
-      } else {
-        // Mode is provisional
-        setProvisionalPixModalData({
-          amount: result.finalPrice,
-          originalAmount: result.originalPrice,
-          discountPercent: result.discountPercent,
-          ticketCount: result.count,
-          reservedNumbers: result.boughtNumbers,
-          batchId: result.batchId
-        });
-        setPixToast({ message: `Reserva provisória de ${result.count} bilhete(s) criada! Efetue o PIX para ativação automática.`, type: 'warning' });
-        setTimeout(() => setPixToast(null), 6000);
-        setPixTicketCount('1');
-      }
-    } catch (err: any) {
-      console.error(err);
-      setPixToast({ message: err.message || 'Erro ao processar compra de bilhetes.', type: 'error' });
-      setTimeout(() => setPixToast(null), 4000);
-    } finally {
-      setIsPurchasingPix(false);
-    }
+    setPixToast({ message: 'As vendas de bilhetes estão oficialmente encerradas.', type: 'error' });
+    setTimeout(() => setPixToast(null), 4000);
+    return;
   };
 
   const handleCancelReservation = async (batchId?: string) => {
@@ -497,99 +455,9 @@ export default function UserPanel() {
           )}
 
           {/* Seção para Compra Rápida se houver sorteio ativo */}
-          {activePixDraws.length > 0 && !activePixDraws[0]?.winningTicket && (
-            <div className="mb-8 bg-slate-900/80 text-white rounded-2xl p-5 border border-indigo-500/30 relative overflow-hidden shadow-inner z-10">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.15),transparent_50%)] pointer-events-none"></div>
-              
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      Sorteio Ativo
-                    </span>
-                    <span className="text-[10px] font-bold text-indigo-300">
-                      {activePixDraws[0].type === 'Loteria Federal' ? '🎰 LOTERIA FEDERAL' : '🔮 MEGA-SENA'}
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-300 bg-slate-950/60 px-2 py-0.5 rounded border border-slate-850/60">
-                      Sorteio: {activePixDraws[0].date ? activePixDraws[0].date.split('-').reverse().join('/') : '-'} às {activePixDraws[0].time || '-'}
-                    </span>
-                  </div>
-                  <h4 className="text-lg font-black text-slate-100 flex items-center gap-1.5">
-                    {activePixDraws[0].type === 'Loteria Federal' ? 'Extração da Loteria Federal' : 'Sorteio Especial Mega-Sena'}
-                  </h4>
-                  {activePixDraws[0].observations && (
-                    <p className="text-xs text-slate-300 max-w-lg line-clamp-2 italic">
-                      {activePixDraws[0].observations}
-                    </p>
-                  )}
-                </div>
-
-                <div className="bg-slate-950/80 border border-indigo-500/20 rounded-xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0 shadow-lg">
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Qtd. Bilhetes
-                    </label>
-                    <div className="flex items-center gap-1">
-                      {['1', '5', '10', '50'].map(val => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => setPixTicketCount(val)}
-                          className={`px-2.5 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${
-                            pixTicketCount === val
-                              ? 'bg-yellow-400 border-yellow-400 text-slate-950 shadow'
-                              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
-                          }`}
-                        >
-                          {val}
-                        </button>
-                      ))}
-                      <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={pixTicketCount}
-                        onChange={(e) => setPixTicketCount(e.target.value)}
-                        className="w-12 bg-slate-900 border border-slate-800 text-white rounded px-1.5 py-1 text-xs text-center font-mono font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col justify-end pt-1 sm:pt-0">
-                    <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase mb-1">
-                      <span>Total:</span>
-                      <span className="text-yellow-400 font-mono text-xs font-black">
-                        R$ {(parseInt(pixTicketCount) || 0).toFixed(2)}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleBuyPixTickets}
-                      disabled={isPurchasingPix || !parseInt(pixTicketCount)}
-                      className="bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400 hover:from-yellow-500 hover:to-yellow-500 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all shadow-md shadow-yellow-400/5 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      {isPurchasingPix ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
-                          <span>Processando...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Award className="w-3.5 h-3.5 shrink-0" />
-                          <span>Comprar Bilhetes</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {raffleGames.length === 0 ? (
             <p className="text-sm text-slate-400 font-medium text-center py-10 bg-slate-900/40 border border-dashed border-indigo-500/20 rounded-2xl relative z-10">
-              Você não possui nenhum bilhete no sorteio ativo. Adquira na Página Inicial ou utilize a compra rápida acima!
+              Você não possui nenhum bilhete registrado neste sorteio.
             </p>
           ) : (
             <div className="space-y-4 relative z-10">

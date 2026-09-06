@@ -264,10 +264,10 @@ export default function Regulations() {
         variants={itemVariants}
         className="flex flex-col sm:flex-row shadow-xs p-5 bg-amber-50/60 border border-amber-200 rounded-3xl justify-center items-center gap-4 text-center"
       >
-        <p className="text-sm font-semibold text-slate-700">Entendeu as regras e quer comprar seus bilhetes?</p>
+        <p className="text-sm font-semibold text-slate-700">Acompanhe as apurações e consulte seus bilhetes:</p>
         <div className="flex gap-4">
           <Link to="/" className="text-xs font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white px-5 py-3 rounded-xl shadow-xs transition-all cursor-pointer">
-            Ver PIX PREMIADO Ativo
+            Ver Sorteio e Resultados
           </Link>
           <Link to="/panel" className="text-xs font-bold uppercase tracking-wider bg-white hover:bg-slate-50 border border-amber-300 text-slate-800 px-5 py-3 rounded-xl transition-all cursor-pointer">
             Meus Bilhetes e Saldo

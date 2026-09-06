@@ -70,6 +70,8 @@ export async function buyOrReservePixTickets(
   activeDraw: PixPremiadoDraw | null,
   forceProvisional = false
 ): Promise<BuyTicketResult> {
+  // Compras de bilhetes oficialmente encerradas
+  throw new Error('As vendas de bilhetes para este sorteio estão oficialmente encerradas.');
   const safeCount = Math.max(1, count || 1);
   const pricing = calculatePixTicketPrice(safeCount);
   const totalCost = pricing.finalPrice;
